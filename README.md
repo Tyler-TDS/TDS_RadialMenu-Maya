@@ -2,7 +2,7 @@
 
 A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI and RMB‑hold summoning. Built with PySide2 and plain Maya `cmds`.
 
-## Showcase:
+Showcase:
 https://vimeo.com/1113096256?share=copy
 
 ## Features
