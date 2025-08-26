@@ -5,42 +5,15 @@ A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI a
 https://user-images.githubusercontent.com/placeholder/demo.gif  <!-- Replace with your GIF/MP4 -->
 
 ## Features
-- **Inner / outer ring** with nested children; hover to reveal children, click to select, MMB drag to reorder.
-- **Preset system** (wheel to swap presets) with per‑preset colours, global size controls, and JSON storage.
-- **Right‑click hold detector** to spawn the radial at the cursor, plus toggles to enable/disable.
+- **Inner / outer ring** with nested children; hover to reveal children, release to run.
+- **Preset system** (scroll wheel to swap presets) with per‑preset colours, global size controls.
 - **Editor UI** to add/remove/reorder sectors and edit commands and descriptions.
-- **Hot‑reload (optional)** for development.
-
-> Core widget: `RadialMenuWidget` (PySide2), with helpers for live‑reload and preset I/O. fileciteturn0file2  
-> RMB‑hold utilities (`launch_or_toggle_radial`, `install_rmb_hold_detector`, `uninstall_radial_menu`) live in `radialMenu_main.py`. fileciteturn0file1  
-> JSON structure with presets, colours and global UI size lives in `radialMenu_info.json`. fileciteturn0file0  
-> Editor dialog (`buildRadialMenu_UI`) lives in `TDS_buildRadialMenu_UI.py`. fileciteturn0file3  
-> Package init exposes `show_window()` and hot‑reload helpers. fileciteturn0file4
-
----
-
-## Repo layout
-
-```
-TDS_library/
-  TDS_radialMenu/
-    __init__.py
-    radialMenu_main.py
-    radialWidget.py
-    TDS_buildRadialMenu_UI.py
-    radialMenu_info.json      # default presets (auto‑generated if missing)
-README.md
-LICENSE
-.gitignore
-CHANGELOG.md
-CONTRIBUTING.md
-```
 
 ---
 
 ## Installation (module style)
 
-> Works on Maya 2020+ (PySide2). Tested on Windows and Linux.
+> Works on Maya 2020+ (PySide2). Tested on Windows.
 
 1) Place the folder `TDS_library/TDS_radialMenu` somewhere on disk (e.g. a pipeline repo).  
 2) Add that parent folder to `PYTHONPATH` or Maya's `maya.module` search via a `.mod`:
