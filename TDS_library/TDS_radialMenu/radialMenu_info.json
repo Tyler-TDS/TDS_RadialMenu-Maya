@@ -1,0 +1,251 @@
+{
+    "active_preset": "Rigging",
+    "ui": {
+        "size": {
+            "radius": 130,
+            "ring_gap": 5,
+            "outer_ring_width": 25,
+            "child_angle_multiplier": 1.2
+        }
+    },
+    "presets": {
+        "Default": {
+            "colour": {
+                "inner_colour": "#454545",
+                "innerHighlight_colour": "#0D2F09",
+                "innerLine_colour": "#1E1E1E",
+                "child_colour": "#23E41F",
+                "childLine_colour": "#1E1E1E",
+                "child_text_color": "#FFFFFF",
+                "child_textOutline_color": "#000000",
+                "child_outline_thickness": 1.2000000000000002
+            },
+            "inner_section": {
+                "Component Mode": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Edge": {
+                            "description": "Set Component Selection to Edges",
+                            "command": "cmds.selectMode(component=True)\ncmds.selectType(allComponents=False)\ncmds.selectType(pe=True)"
+                        },
+                        "Vertex": {
+                            "description": "Set Component Selection to Vertexs",
+                            "command": "cmds.selectMode(component=True)\ncmds.selectType(allComponents=False)\ncmds.selectType(pv=True)"
+                        },
+                        "Face": {
+                            "description": "Set Component Selection to Faces",
+                            "command": "cmds.selectMode(component=True)\ncmds.selectType(allComponents=False)\ncmds.selectType(pf=True)"
+                        },
+                        "Object": {
+                            "description": "Set Component Selection to Object",
+                            "command": "cmds.selectMode(object=True)"
+                        }
+                    }
+                },
+                "Windows": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Node Editor": {
+                            "description": "",
+                            "command": "cmds.NodeEditorWindow()\ncmds.showWindow(\"nodeEditorPanel1Window\")\ncmds.setFocus(\"nodeEditorPanel1\")"
+                        },
+                        "Shape Editor": {
+                            "description": "",
+                            "command": ""
+                        },
+                        "Set Driven Key": {
+                            "description": "",
+                            "command": ""
+                        }
+                    }
+                },
+                "Create": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Plane": {
+                            "description": "",
+                            "command": "cmds.polyPlane()"
+                        },
+                        "Torus": {
+                            "description": "",
+                            "command": "cmds.polyTorus()"
+                        },
+                        "Cone": {
+                            "description": "",
+                            "command": "cmds.polyCone()"
+                        },
+                        "Cylinder": {
+                            "description": "",
+                            "command": "cmds.polyCylinder()"
+                        },
+                        "Cube": {
+                            "description": "",
+                            "command": "cmds.polyCube()"
+                        },
+                        "Sphere": {
+                            "description": "",
+                            "command": "cmds.polySphere()"
+                        }
+                    }
+                },
+                "Select": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Isolate": {
+                            "description": "",
+                            "command": "import maya.cmds as cmds\nimport maya.mel as mel\n\ndef toggle_isolate_selected():\n    \"\"\"\n    Toggle the viewport's Isolate Select via the actual UI button.\n      - OFF + selection  -> ON and isolate selection.\n      - ON  + selection  -> replace isolated set with selection (button stays ON).\n      - ON  + no sel     -> OFF.\n    \"\"\"\n    # Active modelPanel (fallback to first found)\n    panel = cmds.getPanel(withFocus=True)\n    if not panel or cmds.getPanel(typeOf=panel) != \"modelPanel\":\n        mps = cmds.getPanel(type=\"modelPanel\") or []\n        panel = mps[0] if mps else None\n    if not panel:\n        cmds.warning(\"No active modelPanel found.\")\n        return\n    editor = cmds.modelPanel(panel, q=True, modelEditor=True)\n    sel = cmds.ls(sl=True, long=True) or []\n    is_on = cmds.isolateSelect(editor, q=True, state=True)\n\n    if not is_on:\n        if not sel:\n            cmds.warning(\"Nothing selected. Select objects to isolate.\")\n            return\n        # Turn ON (updates the UI button)\n        mel.eval('enableIsolateSelect(\"{0}\", 1);'.format(editor))\n        # Load current selection into isolate set\n        cmds.isolateSelect(editor, loadSelected=True)\n    else:\n        mel.eval('enableIsolateSelect(\"{0}\", 0);'.format(editor))\n\n    cmds.refresh(f=True)\ntoggle_isolate_selected()"
+                        },
+                        "Invert": {
+                            "description": "",
+                            "command": "print('new_child')"
+                        },
+                        "Deselect": {
+                            "description": "",
+                            "command": "cmds.select(cl=True)"
+                        },
+                        "Sel Hierarchy": {
+                            "description": "new_child",
+                            "command": "print('new_child')"
+                        },
+                        "Select All": {
+                            "description": "",
+                            "command": "all = cmds.ls()\ncmds.select(all)"
+                        }
+                    }
+                }
+            }
+        },
+        "Rigging": {
+            "colour": {
+                "inner_colour": "#454545",
+                "innerHighlight_colour": "#0F0716",
+                "innerLine_colour": "#1E1E1E",
+                "child_colour": "#A84CFF",
+                "childLine_colour": "#1E1E1E",
+                "child_text_color": "#FFFFFF",
+                "child_textOutline_color": "#000000",
+                "child_outline_thickness": 1.2000000000000002
+            },
+            "inner_section": {
+                "Constraints": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Parent Con": {
+                            "description": "Parent Constriant",
+                            "command": "sel = cmds.ls(sl=True)\ncmds.parentConstraint(sel[0], sel[1], mo=True)\ncmds.select(sel)"
+                        },
+                        "Point Con": {
+                            "description": "Point Constriant",
+                            "command": "print('Point Constriant')"
+                        },
+                        "Orient Con": {
+                            "description": "Orient Constraint",
+                            "command": "print('Orient Constraint')"
+                        }
+                    }
+                },
+                "Joints": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Joint Tool": {
+                            "description": "Joint Tool",
+                            "command": "import maya.cmds as cmds\ncmds.setToolTo('jointContext')"
+                        }
+                    }
+                },
+                "Windows": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "AutoRigger": {
+                            "description": "",
+                            "command": "import TDS_library.TDS_autoRigger\nimport imp\nimp.reload(TDS_library.TDS_autoRigger)\nTDS_library.TDS_autoRigger.run()"
+                        },
+                        "Namer": {
+                            "description": "",
+                            "command": "import TDS_library.TDS_namer\nTDS_library.TDS_namer.show_window()"
+                        },
+                        "Node Editor": {
+                            "description": "",
+                            "command": "cmds.NodeEditorWindow()\ncmds.showWindow(\"nodeEditorPanel1Window\")\ncmds.setFocus(\"nodeEditorPanel1\")"
+                        }
+                    }
+                },
+                "Create": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Locator": {
+                            "description": "Makes locator at selection",
+                            "command": "import maya.cmds as mc\nsel = mc.ls(sl=True) or [1]\nif sel:\n    for each in sel:\n    \tpos = mc.xform(each, q=True, ws=True, t=True)\n    \tmc.spaceLocator(p=pos)"
+                        },
+                        "Joint": {
+                            "description": "Makes a joint",
+                            "command": "cmds.joint()"
+                        },
+                        "Cluster": {
+                            "description": "Cluster",
+                            "command": "cmds.cluster()"
+                        }
+                    }
+                },
+                "Export/Import": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Import": {
+                            "description": "",
+                            "command": ""
+                        },
+                        "Reference": {
+                            "description": "",
+                            "command": ""
+                        },
+                        "Export": {
+                            "description": "",
+                            "command": ""
+                        },
+                        "Publish": {
+                            "description": "",
+                            "command": ""
+                        }
+                    }
+                }
+            }
+        },
+        "Animation": {
+            "colour": {
+                "inner_colour": "#454545",
+                "innerHighlight_colour": "#282828",
+                "innerLine_colour": "#1E1E1E",
+                "child_colour": "#A34BA6",
+                "childLine_colour": "#1E1E1E",
+                "child_text_color": "#FFFFFF",
+                "child_textOutline_color": "#000000",
+                "child_outline_thickness": 1
+            },
+            "inner_section": {
+                "Key Frame": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Set Key": {
+                            "description": "",
+                            "command": "#command to set key frame"
+                        }
+                    }
+                },
+                "Anim Curves": {
+                    "description": "",
+                    "command": ""
+                }
+            }
+        }
+    }
+}

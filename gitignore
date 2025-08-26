@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maya
+mayaOutput.log
+*.crash*
+*.stacktrace*
+maya_temp/
+
+# Project artifacts
+*.mp4
+*.gif
+*.zip
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/
