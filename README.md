@@ -1,5 +1,4 @@
-[![Watch the demo](https://img.shields.io/badge/Watch%20Demo-red?style=for-the-badge&logo=vimeo&logoColor=white)](https://vimeo.com/1113096256)
-
+[![Watch Demo](https://img.shields.io/badge/-Watch%20Demo-red?style=for-the-badge&logo=vimeo&logoColor=white&labelColor=555555)](https://vimeo.com/1113096256)
 
 # TDS-Radial Menu for Maya
 
