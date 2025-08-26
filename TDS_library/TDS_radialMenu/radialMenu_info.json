@@ -1,5 +1,5 @@
 {
-    "active_preset": "Rigging",
+    "active_preset": "Default",
     "ui": {
         "size": {
             "radius": 130,
@@ -12,9 +12,9 @@
         "Default": {
             "colour": {
                 "inner_colour": "#454545",
-                "innerHighlight_colour": "#0D2F09",
+                "innerHighlight_colour": "#282828",
                 "innerLine_colour": "#1E1E1E",
-                "child_colour": "#23E41F",
+                "child_colour": "#5285A6",
                 "childLine_colour": "#1E1E1E",
                 "child_text_color": "#FFFFFF",
                 "child_textOutline_color": "#000000",
@@ -216,34 +216,6 @@
                             "command": ""
                         }
                     }
-                }
-            }
-        },
-        "Animation": {
-            "colour": {
-                "inner_colour": "#454545",
-                "innerHighlight_colour": "#282828",
-                "innerLine_colour": "#1E1E1E",
-                "child_colour": "#A34BA6",
-                "childLine_colour": "#1E1E1E",
-                "child_text_color": "#FFFFFF",
-                "child_textOutline_color": "#000000",
-                "child_outline_thickness": 1
-            },
-            "inner_section": {
-                "Key Frame": {
-                    "description": "",
-                    "command": "",
-                    "children": {
-                        "Set Key": {
-                            "description": "",
-                            "command": "#command to set key frame"
-                        }
-                    }
-                },
-                "Anim Curves": {
-                    "description": "",
-                    "command": ""
                 }
             }
         }
