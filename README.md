@@ -1,4 +1,4 @@
-# TDS - Radial Menu for Maya
+# TDS-Radial Menu for Maya
 
 A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI and RMB‑hold summoning. Built with PySide2 and plain Maya `cmds`.
 
