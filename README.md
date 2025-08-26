@@ -1,8 +1,6 @@
 # TDS Radial Menu for Maya (PySide2)
 
-A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI and RMB‑hold summoning. Built with PySide2 and plain Maya `cmds`. Presets are stored as ordered JSON so teams can version and review changes easily.
-
-https://user-images.githubusercontent.com/placeholder/demo.gif  <!-- Replace with your GIF/MP4 -->
+A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI and RMB‑hold summoning. Built with PySide2 and plain Maya `cmds`.
 
 ## Features
 - **Inner / outer ring** with nested children; hover to reveal children, release to run.
@@ -11,7 +9,7 @@ https://user-images.githubusercontent.com/placeholder/demo.gif  <!-- Replace wit
 
 ---
 
-## Installation (module style)
+## Installation
 
 > Works on Maya 2020+ (PySide2). Tested on Windows.
 
@@ -52,7 +50,7 @@ select_preset("Rigging")
 from TDS_library.TDS_radialMenu import show_window
 show_window()
 ```
-The editor lets you change labels, descriptions, commands, colours and global size (radius, ring gap, outer width, child angle multiplier). fileciteturn0file3
+The editor lets you change labels, descriptions, commands, colours and global size (radius, ring gap, outer width, child angle multiplier).
 
 ---
 
