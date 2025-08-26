@@ -13,7 +13,7 @@ A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI a
 
 > Works on Maya 2020+ (PySide2). Tested on Windows.
 
-1) Place the folder `TDS_library/TDS_radialMenu` in Maya Python Path (`Documents/maya/scripts`).  
+1) Download and place the folder `TDS_library/TDS_radialMenu` in Maya Python Path (`Documents/maya/scripts`).  
 2) Run Quick Start
 
 ---
