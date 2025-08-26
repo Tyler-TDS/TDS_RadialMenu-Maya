@@ -1,4 +1,5 @@
-[![Watch Demo](https://img.shields.io/badge/-Watch%20Demo-red?style=for-the-badge&logo=vimeo&logoColor=white&labelColor=555555)](https://vimeo.com/1113096256)
+[![Watch Demo](https://img.shields.io/badge/-Watch%20Demo-1ab7ea?style=for-the-badge&logo=vimeo&logoColor=white&labelColor=555555)](https://vimeo.com/1113096256) [![Fuel My Code](https://img.shields.io/badge/-Fuel%20My%20Code%20-yellow?style=for-the-badge&logo=buymeacoffee&logoColor=white&labelColor=555555)](https://www.buymeacoffee.com/TDS_Tyler)
+
 
 # TDS-Radial Menu for Maya
 
