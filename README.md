@@ -3,7 +3,8 @@
 A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI and RMB‑hold summoning. Built with PySide2 and plain Maya `cmds`.
 
 ## Showcase
-[![Radial Menu Demo](docs/demo.png)](https://vimeo.com/1113096256)
+[![Radial Menu Demo]([https://i.vimeocdn.com/video/1234567890-abcdef1234567890...](https://i.vimeocdn.com/video/2051513937-e46ae56a686fad7cb464ebabb03b12c2ec9e5f96361bfedc60cfe378894c0c54-d_640x360?&region=us)_640x360.jpg)](https://vimeo.com/1113096256)
+
 
 ## Features
 - **Inner / outer ring** with nested children; hover to reveal children, release to run.
