@@ -1,11 +1,7 @@
+[![Watch the demo](https://img.shields.io/badge/▶-Watch%20Demo-red?style=for-the-badge&logo=vimeo)](https://vimeo.com/1113096256)
 # TDS-Radial Menu for Maya
 
 A fast, JSON‑driven radial menu for Autodesk Maya with an optional editor UI and RMB‑hold summoning. Built with PySide2 and plain Maya `cmds`.
-
-## Showcase
-[![Radial Menu Demo](https://i.vimeocdn.com/video/2051513937-e46ae56a686fad7cb464ebabb03b12c2ec9e5f96361bfedc60cfe378894c0c54-d_640x360?&region=us_640x360.jpg)](https://vimeo.com/1113096256)
-
-## Showcase [![Watch the demo](https://img.shields.io/badge/▶-Watch%20Demo-red?style=for-the-badge&logo=vimeo)](https://vimeo.com/1113096256)
 
 ## Features
 - **Inner / outer ring** with nested children; hover to reveal children, release to run.
