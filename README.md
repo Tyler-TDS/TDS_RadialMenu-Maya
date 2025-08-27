@@ -27,7 +27,7 @@
 - Activate Radial Menu:
 ```python
 from TDS_library.TDS_radialMenu import radialMenu_main as rm
-rm.install_rmb_hold_detector()
+rm.launch_or_toggle_radial(True)
 ```
 
 - Toggle or force the active state:
