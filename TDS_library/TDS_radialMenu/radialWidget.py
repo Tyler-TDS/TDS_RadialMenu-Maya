@@ -184,6 +184,7 @@ def get_main_window():
 class RadialMenuWidget(QtWidgets.QWidget):
     trigger_signal = QtCore.Signal(str)
     preset_changed = QtCore.Signal(str)
+    preset_previewed = QtCore.Signal(str)
 
     def __init__(self, parent=None, label_lineEdit=None, hiddenLabel=None,
                  pos_dropdown=None, scriptEditor=None, hiddenType=None, hiddenParent=None,
@@ -246,6 +247,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.ring_gap = size_data.get("ring_gap", 5)
         self.outer_ring_width = size_data.get("outer_ring_width", 25)
         self.outer_radius = self.radius + self.ring_gap + self.outer_ring_width
+        self._preview_name = get_active_preset()
 
         self.center_pos = QtGui.QCursor.pos()
         extra_height = 80  # Reserve space for description
@@ -264,6 +266,21 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.hovered_child_angles = {}
 
         self.trigger_signal.connect(self.execute_action)
+
+    def _preview_preset(self, preset_name: str):
+        data = _load_data()
+        preset_data = data["presets"].get(preset_name, OrderedDict())
+
+        self.inner_sections = preset_data.get("inner_section", OrderedDict())
+        self.inner_order = list(self.inner_sections.keys())
+        self.inner_angles = self.calculate_angles(self.inner_order)
+
+        # 🔹 important: fully clear any prior selection/hover/lock state
+        self._clear_selection_state()
+
+        self._apply_preset_colours(preset_data)
+        self.update()
+
     def sizeHint(self):
         d = int(self.outer_radius * 2 + self._pad * 2)
         return QtCore.QSize(d, d)
@@ -273,7 +290,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         w.update()
 
     def resizeEvent(self, e):
-        super(RadialMenuWidget, self).resizeEvent(e)
+        QtWidgets.QWidget.resizeEvent(self, e)
         self._recalc_display_metrics()
         self.update()
 
@@ -318,6 +335,14 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.child_outline_color = _q(child_text_outline_hex, "#141414DC")
         self.child_outline_thickness = float(colour_data.get("child_outline_thickness", 1.6))
 
+    def _clear_selection_state(self):
+        self._sticky_parent = None
+        self.current_parent_label = ""
+        self.active_sector = None
+        self.outer_active_sector = None
+        self.hovered_children = None
+        self.hovered_child_angles = {}
+
     def wheelEvent(self, event: QtGui.QWheelEvent):
         # Only react if the cursor is inside the menu circle
         pos = event.pos()
@@ -326,46 +351,40 @@ class RadialMenuWidget(QtWidgets.QWidget):
             event.ignore()
             return
 
+        # Determine scroll delta
         delta = event.angleDelta().y() or event.angleDelta().x()
         if delta == 0:
             event.ignore()
             return
 
+        # Need at least 2 presets to cycle
         names = list_presets()
         if not names or len(names) == 1:
             event.accept()
             return
 
-        cur = get_active_preset()
+        # Use rolling preview anchor so each tick advances correctly
+        cur = getattr(self, "_preview_name", None) or get_active_preset()
         try:
             idx = names.index(cur)
         except ValueError:
-            idx = 0
+            # preview anchor out of sync — fall back to active preset
+            fallback = get_active_preset()
+            idx = names.index(fallback) if fallback in names else 0
 
-        step = -1 if delta < 0 else 1  # flip this if you prefer the other direction
+        step = -1 if delta < 0 else 1
         new_name = names[(idx + step) % len(names)]
+        self._preview_name = new_name  # advance local anchor
 
-        if set_active_preset(new_name):
-            data = _load_data()
-            self.inner_sections = _active_preset(data).get("inner_section", OrderedDict())
-            self.inner_order = list(self.inner_sections.keys())
-            self.inner_angles = self.calculate_angles(self.inner_order)
-            self.active_sector = None
-            self.outer_active_sector = None
-            self.hovered_children = None
-            self.hovered_child_angles = {}
-            self.update()
-            self._apply_preset_colours(_active_preset(data))
-            # tell the editor to sync its preset combo
-            try:
-                self.preset_changed.emit(new_name)
-            except Exception:
-                pass
+        # Preview ONLY (do not save active preset)
+        self._preview_preset(new_name)
 
-            try:
-                cmds.inViewMessage(amg=f"Preset: <hl>{new_name}</hl>", pos='topCenter', fade=True)
-            except Exception:
-                pass
+        # Tell the editor to mirror the name without committing
+        try:
+            self.preset_previewed.emit(new_name)  # NOTE: NOT preset_changed
+        except Exception:
+            pass
+
 
         event.accept()
 
@@ -682,7 +701,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
                                 cur_type == "child" and cur_label == tgt_child and cur_parent == parent_label)
 
                     if clicking_same_child:
-                        # --- toggle OFF child: clear child selection but keep parent locked & children visible ---
+                        # --- toggle OFF child: clear ALL selection (no parent lock) ---
                         if self.hiddenLabel:  self.hiddenLabel.setText("")
                         if self.hiddenType:   self.hiddenType.setText("")
                         if self.hiddenParent: self.hiddenParent.setText("")
@@ -690,13 +709,8 @@ class RadialMenuWidget(QtWidgets.QWidget):
                         if self.scriptEditor:   self.scriptEditor.clear()
                         if getattr(self, "descEditor", None): self.descEditor.clear()
 
-                        # keep the parent locked and children shown
-                        self._sticky_parent = parent_label or None
-                        self.active_sector = self._sticky_parent
-                        self.hovered_children = self.inner_sections.get(self._sticky_parent, {}).get("children",
-                                                                                                     {}) if self._sticky_parent else None
-                        self.hovered_child_angles = self.get_child_angles() if self.hovered_children else {}
-                        self.outer_active_sector = None
+                        # drop any sticky/hover state so hovering behaves normally
+                        self._clear_selection_state()
                         self.update()
                         return
                     else:
@@ -739,7 +753,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
             return
 
         # default
-        super(RadialMenuWidget, self).mousePressEvent(event)
+        QtWidgets.QWidget.mousePressEvent(self, event)
 
     def calculate_angles(self, order):
         if not order:

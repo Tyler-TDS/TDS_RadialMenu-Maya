@@ -279,7 +279,7 @@ class buildRadialMenu_UI(QDialog):
             descEditor=self.desc_lineEdit
         )
         self.left.setMinimumWidth(self._preview_pixel_size().width() + 8)
-        self.radial_widget.preset_changed.connect(self.preset_combo.setCurrentText)
+        self.radial_widget.preset_previewed.connect(self._on_preset_previewed)
         self.radial_widget.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         self.radial_widget.setFixedSize(self._preview_pixel_size())
         self.radial_widget.updateGeometry()
@@ -289,6 +289,18 @@ class buildRadialMenu_UI(QDialog):
         # Initial colour form fill
         self._load_colour_controls()
 
+    @QtCore.Slot(str)
+    def _on_preset_previewed(self, name: str):
+        # Mirror combo without triggering commit
+        blocker = QtCore.QSignalBlocker(self.preset_combo)
+        self.preset_combo.setCurrentText(name)
+        del blocker
+
+        # Update colour controls for previewed preset
+        self._load_colour_controls_for(name)
+
+        # 🔹 Clear any previously selected inner/child in the editor UI
+        self._clear_editor_selection()
     def _preview_pixel_size(self) -> QtCore.QSize:
         w = self.radial_widget
         # diameter of rings = 2 * (inner radius + gap + outer width)
@@ -399,28 +411,10 @@ class buildRadialMenu_UI(QDialog):
     # ---------- Colour helpers ----------
     def _load_colour_controls(self):
         data = radialWidget._load_data()
-        preset = data["presets"][data["active_preset"]]
-        col = preset.setdefault("colour", OrderedDict())
-
-        defaults = {
-            "inner_colour": "#454545",
-            "innerHighlight_colour": "#282828",
-            "innerLine_colour": "#1E1E1E",
-            "child_colour": "#5285a6",
-            "childLine_colour": "#1E1E1E",
-            "child_text_color": "#FFFFFF",
-            "child_textOutline_color": "#000000",
-            "child_outline_thickness": 1,
-        }
-        for k, v in defaults.items():
-            col.setdefault(k, v)
-
-        for k, btn in self._colour_buttons.items():
-            btn.setStyleSheet(f"background-color: {col.get(k, defaults[k])};")
-
-        self.outline_thickness.blockSignals(True)
-        self.outline_thickness.setValue(float(col.get("child_outline_thickness", defaults["child_outline_thickness"])))
-        self.outline_thickness.blockSignals(False)
+        ap = data.get("active_preset", "")
+        if not ap:
+            return
+        self._load_colour_controls_for(ap)
 
     def _btn_hex(self, btn):
         """Extract hex/rgb(a) from the button stylesheet; fallback to palette."""
@@ -627,11 +621,69 @@ class buildRadialMenu_UI(QDialog):
         self._save_all(data)
         self._refresh_preview(data)
         self.hiddenLabel.setText(newLabel)
+
+    def _load_colour_controls_for(self, preset_name: str):
+        data = radialWidget._load_data()
+        if "presets" not in data or preset_name not in data["presets"]:
+            return
+
+        preset = data["presets"][preset_name]
+        col = preset.setdefault("colour", OrderedDict())
+
+        defaults = {
+            "inner_colour": "#454545",
+            "innerHighlight_colour": "#282828",
+            "innerLine_colour": "#1E1E1E",
+            "child_colour": "#5285a6",
+            "childLine_colour": "#1E1E1E",
+            "child_text_color": "#FFFFFF",
+            "child_textOutline_color": "#000000",
+            "child_outline_thickness": 1,
+        }
+        for k, v in defaults.items():
+            col.setdefault(k, v)
+
+        # Update UI buttons
+        for k, btn in self._colour_buttons.items():
+            btn.setStyleSheet(f"background-color: {col.get(k, defaults[k])};")
+
+        # Spinbox (block to avoid valueChanged recursion)
+        self.outline_thickness.blockSignals(True)
+        self.outline_thickness.setValue(float(col.get("child_outline_thickness", defaults["child_outline_thickness"])))
+        self.outline_thickness.blockSignals(False)
+
+        # Live-apply to preview widget too
+        try:
+            self.radial_widget._apply_preset_colours(preset)
+            self.radial_widget.update()
+        except Exception:
+            pass
+
+    def _clear_editor_selection(self):
+        # Clear hidden context
+        self.hiddenLabel.setText("")
+        self.hiddenType.setText("")
+        self.hiddenParent.setText("")
+        # Clear visible editors
+        self.label_lineEdit.clear()
+        self.scriptEditor.clear()
+        self.desc_lineEdit.clear()
+
     def _on_preset_changed(self, name):
         if radialWidget.set_active_preset(name):
             data = self._load_all()
             self._refresh_preview(data)
-            self._load_colour_controls()   # <— add this
+
+            # Update colour controls to the newly active preset
+            self._load_colour_controls_for(name)
+
+            # Keep scroll-preview in sync and apply colours/sections immediately
+            self.radial_widget._preview_name = name
+            self.radial_widget._preview_preset(name)
+
+            # 🔹 Clear any previously selected inner/child in the editor UI
+            self._clear_editor_selection()
+
 
 
 def show_window():
