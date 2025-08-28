@@ -11,9 +11,6 @@
 - **Preset system** (scroll wheel to swap presets) with per‑preset colours, global size controls.
 - **Editor UI** to add/remove/reorder sectors and edit commands and descriptions.
 
-> ⚠️ **Note:** The included editor UI is still a *work in progress*.  
-> The radial menu itself is fully functional, but expect changes and improvements to the UI in future updates.
-
 ---
 
 ## Installation
@@ -30,7 +27,7 @@
 - Activate Radial Menu:
 ```python
 from TDS_library.TDS_radialMenu import radialMenu_main as rm
-rm.install_rmb_hold_detector()
+rm.launch_or_toggle_radial(True)
 ```
 
 - Toggle or force the active state:
