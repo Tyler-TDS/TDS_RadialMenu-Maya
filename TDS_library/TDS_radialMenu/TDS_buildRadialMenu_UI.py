@@ -175,16 +175,28 @@ class buildRadialMenu_UI(QDialog):
         self.child_angle_mult_spin = QtWidgets.QDoubleSpinBox()
         self.child_angle_mult_spin.setRange(0.1, 8.0); self.child_angle_mult_spin.setSingleStep(0.1); self.child_angle_mult_spin.setDecimals(2)
 
+        self.inner_hole_spin = QtWidgets.QSpinBox()
+        self.inner_hole_spin.setRange(0, 1000)
+        self.inner_hole_spin.setSingleStep(1)
+
         size_row1 = QHBoxLayout()
-        size_row1.addWidget(QLabel("Radius"));    size_row1.addWidget(self.radius_spin)
-        size_row1.addWidget(QLabel("Ring Gap"));  size_row1.addWidget(self.ring_gap_spin)
+        size_row1.addWidget(QLabel("Radius"))
+        size_row1.addWidget(self.radius_spin)
+        size_row1.addWidget(QLabel("Ring Gap"))
+        size_row1.addWidget(self.ring_gap_spin)
 
         size_row2 = QHBoxLayout()
-        size_row2.addWidget(QLabel("Outer Width"));         size_row2.addWidget(self.outer_w_spin)
-        size_row2.addWidget(QLabel("Child Angle ×"));       size_row2.addWidget(self.child_angle_mult_spin)
+        size_row2.addWidget(QLabel("Outer Width"))
+        size_row2.addWidget(self.outer_w_spin)
+        size_row2.addWidget(QLabel("Child Angle ×"))
+        size_row2.addWidget(self.child_angle_mult_spin)
+        size_row2.addWidget(QLabel("Inner Hole"))
+        size_row2.addWidget(self.inner_hole_spin)  # ← NEW
 
-        editRadialInfo_layout.addLayout(size_row1, row, 0, 1, 3); row += 1
-        editRadialInfo_layout.addLayout(size_row2, row, 0, 1, 3); row += 1
+        editRadialInfo_layout.addLayout(size_row1, row, 0, 1, 3)
+        row += 1
+        editRadialInfo_layout.addLayout(size_row2, row, 0, 1, 3)
+        row += 1
 
         # Load size from JSON
         _all = radialWidget._load_data()
@@ -193,7 +205,8 @@ class buildRadialMenu_UI(QDialog):
         self.ring_gap_spin.setValue(int(_size.get("ring_gap", 5)))
         self.outer_w_spin.setValue(int(_size.get("outer_ring_width", 25)))
         self.child_angle_mult_spin.setValue(float(_size.get("child_angle_multiplier", 1.0)))
-        for w in (self.radius_spin, self.ring_gap_spin, self.outer_w_spin, self.child_angle_mult_spin):
+        self.inner_hole_spin.setValue(int(_size.get("inner_hole_radius", max(0, int(_size.get("radius", 150) * 0.35)))))
+        for w in (self.radius_spin, self.ring_gap_spin, self.outer_w_spin, self.child_angle_mult_spin, self.inner_hole_spin):
             w.valueChanged.connect(self._save_global_size)
 
         # --- Colours section (collapsible) ---
@@ -313,15 +326,16 @@ class buildRadialMenu_UI(QDialog):
         # Use radialWidget's preset-aware loader (also migrates legacy schema)
         return radialWidget._load_data()
 
-    def _active(self, data):
-        # Active preset dict
-        return radialWidget._active_preset(data)
+    def _current(self, data):
+        # Use what’s selected in the Preset combo (sync’d by preview too)
+        name = self.preset_combo.currentText().strip()
+        return data["presets"][name]
 
     def _save_all(self, data):
         radialWidget._save_data(data)
 
     def _refresh_preview(self, data):
-        preset = self._active(data)
+        preset = self._current(data)
         w = self.radial_widget
         w.inner_sections = preset.get("inner_section", OrderedDict())
         w.inner_order = list(w.inner_sections.keys())
@@ -366,6 +380,7 @@ class buildRadialMenu_UI(QDialog):
         size["ring_gap"] = int(self.ring_gap_spin.value())
         size["outer_ring_width"] = int(self.outer_w_spin.value())
         size["child_angle_multiplier"] = float(self.child_angle_mult_spin.value())
+        size["inner_hole_radius"] = int(self.inner_hole_spin.value())
 
         self._save_all(data)
         self._apply_size_to_preview(size)
@@ -376,7 +391,11 @@ class buildRadialMenu_UI(QDialog):
         w.ring_gap = int(size.get("ring_gap", 5))
         w.outer_ring_width = int(size.get("outer_ring_width", 25))
         w.child_angle_mult = float(size.get("child_angle_multiplier", 1.0))
+        w.inner_hole = int(size.get("inner_hole_radius", max(0, int(w.radius * 0.35))))  # ← NEW
         w.outer_radius = w.radius + w.ring_gap + w.outer_ring_width
+
+        if hasattr(w, "_recalc_display_metrics"):
+            w._recalc_display_metrics()
 
         # Exact preview pixel size
         pix = self._preview_pixel_size()
@@ -417,27 +436,25 @@ class buildRadialMenu_UI(QDialog):
         self._load_colour_controls_for(ap)
 
     def _btn_hex(self, btn):
-        """Extract hex/rgb(a) from the button stylesheet; fallback to palette."""
+        """Extract color from button and return #AARRGGBB (Qt-friendly)."""
         ss = btn.styleSheet() or ""
         m = re.search(r'background-color:\s*([^;]+);?', ss, re.IGNORECASE)
         if m:
             candidate = m.group(1).strip()
             q = QtGui.QColor(candidate)
             if q.isValid():
-                # Preserve alpha if present
-                if q.alpha() >= 255:
-                    return "#{:02X}{:02X}{:02X}".format(q.red(), q.green(), q.blue())
-                else:
-                    return "#{:02X}{:02X}{:02X}{:02X}".format(q.red(), q.green(), q.blue(), q.alpha())
-        # fallback
+                # Always ARGB
+                return "#{:02X}{:02X}{:02X}{:02X}".format(q.alpha(), q.red(), q.green(), q.blue())
+
+        # Fallback to palette; assume fully opaque
         q = btn.palette().button().color()
-        return "#{:02X}{:02X}{:02X}".format(q.red(), q.green(), q.blue())
+        return "#{:02X}{:02X}{:02X}{:02X}".format(255, q.red(), q.green(), q.blue())
 
     def _save_colours(self):
         """Persist colour buttons + outline thickness to JSON and live-apply."""
         data = radialWidget._load_data()
-        ap = data["active_preset"]
-        preset = data["presets"][ap]
+        name = self.preset_combo.currentText()
+        preset = data["presets"][name]
         col = preset.setdefault("colour", OrderedDict())
 
         # read hex from each button
@@ -457,19 +474,32 @@ class buildRadialMenu_UI(QDialog):
             pass
 
     def _pick_colour(self, key, btn_widget):
-        start = btn_widget.palette().button().color().name()
-        col = QtWidgets.QColorDialog.getColor(QtGui.QColor(start), self, "Pick Colour")
-        if col.isValid():
-            hex_str = "#{:02X}{:02X}{:02X}".format(col.red(), col.green(), col.blue())
-            # Save
-            data = radialWidget._load_data()
-            ap = data["active_preset"]
-            preset = data["presets"][ap]
-            preset.setdefault("colour", OrderedDict())[key] = hex_str
+        # Start from currently stored color (with alpha if any)
+        data = radialWidget._load_data()
+        preset_name = self.preset_combo.currentText().strip() or data.get("active_preset")
+        preset = data["presets"][preset_name]
+        col_block = preset.setdefault("colour", OrderedDict())
+        curr = radialWidget._q(col_block.get(key, "#000000"), "#000000")
+
+        dlg = QtWidgets.QColorDialog(self)
+        dlg.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
+        dlg.setCurrentColor(curr)
+
+        if dlg.exec_():
+            c = dlg.currentColor()
+
+            # Store as legacy #RRGGBBAA (your JSON already uses this), our loader now handles both.
+            hex_rrggbbaa = "#{:02X}{:02X}{:02X}{:02X}".format(c.alpha(), c.red(), c.green(), c.blue())
+            print(hex_rrggbbaa)
+            col_block[key] = hex_rrggbbaa
             radialWidget._save_data(data)
-            # Update UI
-            btn_widget.setStyleSheet(f"background-color: {hex_str};")
-            # Live apply
+
+            # Swatch shows alpha via rgba(...) so there’s no QSS ambiguity
+            btn_widget.setStyleSheet(
+                "background-color: rgba({}, {}, {}, {});".format(c.red(), c.green(), c.blue(), c.alpha())
+            )
+
+            # Live apply to preview
             try:
                 self.radial_widget._apply_preset_colours(preset)
                 self.radial_widget.update()
@@ -479,7 +509,7 @@ class buildRadialMenu_UI(QDialog):
     # ---------------- adders ----------------
     def add_inner(self):
         data = self._load_all()
-        preset = self._active(data)
+        preset = self._current(data)
         inner = preset.get("inner_section", OrderedDict())
 
         base = "new_section"
@@ -518,7 +548,7 @@ class buildRadialMenu_UI(QDialog):
             return
 
         data = self._load_all()
-        preset = self._active(data)
+        preset = self._current(data)
         inner = preset.get("inner_section", OrderedDict())
         parent = inner.get(parent_label)
         if parent is None:
@@ -570,7 +600,7 @@ class buildRadialMenu_UI(QDialog):
             return
 
         data = self._load_all()
-        preset = self._active(data)
+        preset = self._current(data)
 
         # ----- INNER -----
         if sel_type == "inner":
@@ -645,7 +675,12 @@ class buildRadialMenu_UI(QDialog):
 
         # Update UI buttons
         for k, btn in self._colour_buttons.items():
-            btn.setStyleSheet(f"background-color: {col.get(k, defaults[k])};")
+            qcol = radialWidget._q(col.get(k, defaults[k]), defaults[k])
+            btn.setStyleSheet(
+                "background-color: rgba({}, {}, {}, {});".format(
+                    qcol.red(), qcol.green(), qcol.blue(), qcol.alpha()
+                )
+            )
 
         # Spinbox (block to avoid valueChanged recursion)
         self.outline_thickness.blockSignals(True)
