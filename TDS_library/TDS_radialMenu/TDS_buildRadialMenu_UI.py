@@ -35,7 +35,7 @@ class CollapsibleFrame(QtWidgets.QFrame):
         self._toggle.setAutoRaise(True)
 
         header = QtWidgets.QHBoxLayout()
-        header.setContentsMargins(5, 5, 5, 5)
+        header.setContentsMargins(2, 2, 2, 2)
         header.addWidget(self._toggle)
         header.addStretch(1)
 
@@ -45,9 +45,9 @@ class CollapsibleFrame(QtWidgets.QFrame):
         self.body.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
 
         self.body_layout = QGridLayout(self.body)
-        self.body_layout.setContentsMargins(8, 0, 8, 8)
-        self.body_layout.setHorizontalSpacing(5)
-        self.body_layout.setVerticalSpacing(5)
+        self.body_layout.setContentsMargins(4, 0, 4, 4)
+        self.body_layout.setHorizontalSpacing(4)
+        self.body_layout.setVerticalSpacing(2)
         # Make labels get the width, buttons stay compact
         self.body_layout.setColumnStretch(0, 1)
         self.body_layout.setColumnStretch(1, 0)
@@ -127,9 +127,9 @@ class buildRadialMenu_UI(QDialog):
 
         self.right = QtWidgets.QWidget()
         editRadialInfo_layout = QGridLayout(self.right)
-        editRadialInfo_layout.setContentsMargins(6, 0, 0, 0)
-        editRadialInfo_layout.setHorizontalSpacing(6)
-        editRadialInfo_layout.setVerticalSpacing(6)
+        editRadialInfo_layout.setContentsMargins(4, 2, 4, 2)
+        editRadialInfo_layout.setHorizontalSpacing(4)
+        editRadialInfo_layout.setVerticalSpacing(2)
 
         self.splitter.addWidget(self.left)
         self.splitter.addWidget(self.right)
@@ -166,6 +166,23 @@ class buildRadialMenu_UI(QDialog):
         for b in (btn_new, btn_dup, btn_del): preset_btns.addWidget(b)
         editRadialInfo_layout.addLayout(preset_btns, row, 0, 1, 3); row += 1
 
+        # --- Active toggle ---
+        self.active_chk = QtWidgets.QCheckBox("Active (included in scroll)")
+        self.active_chk.setToolTip(
+            "When off, this preset is skipped by the mouse wheel.\n"
+            "Smart mode ignores this and can still select it."
+        )
+        self.active_chk.toggled.connect(self._on_active_toggled)
+        editRadialInfo_layout.addWidget(self.active_chk, row, 0, 1, 3)
+        row += 1
+
+        self.smart_mode_combo = QtWidgets.QComboBox()
+        self.smart_mode_combo.addItems(["Department", "Selection"])
+        self.smart_mode_combo.currentTextChanged.connect(self._on_smart_mode_changed)
+        editRadialInfo_layout.addWidget(QLabel("Smart mode: (Selection is WIP)"), row, 0, 1, 1)
+        editRadialInfo_layout.addWidget(self.smart_mode_combo, row, 1, 1, 2)
+        row += 1
+
         # --- Size controls ---
         editRadialInfo_layout.addWidget(QLabel("Menu Size (global):"), row, 0, 1, 3); row += 1
 
@@ -180,18 +197,23 @@ class buildRadialMenu_UI(QDialog):
         self.inner_hole_spin.setSingleStep(1)
 
         size_row1 = QHBoxLayout()
+        size_row1.setContentsMargins(0, 0, 0, 0)
+        size_row1.setSpacing(4)
         size_row1.addWidget(QLabel("Radius"))
         size_row1.addWidget(self.radius_spin)
         size_row1.addWidget(QLabel("Ring Gap"))
         size_row1.addWidget(self.ring_gap_spin)
 
         size_row2 = QHBoxLayout()
+        size_row2.setContentsMargins(0, 0, 0, 0)
+        size_row2.setSpacing(4)
         size_row2.addWidget(QLabel("Outer Width"))
         size_row2.addWidget(self.outer_w_spin)
         size_row2.addWidget(QLabel("Child Angle ×"))
         size_row2.addWidget(self.child_angle_mult_spin)
         size_row2.addWidget(QLabel("Inner Hole"))
         size_row2.addWidget(self.inner_hole_spin)  # ← NEW
+
 
         editRadialInfo_layout.addLayout(size_row1, row, 0, 1, 3)
         row += 1
@@ -208,6 +230,16 @@ class buildRadialMenu_UI(QDialog):
         self.inner_hole_spin.setValue(int(_size.get("inner_hole_radius", max(0, int(_size.get("radius", 150) * 0.35)))))
         for w in (self.radius_spin, self.ring_gap_spin, self.outer_w_spin, self.child_angle_mult_spin, self.inner_hole_spin):
             w.valueChanged.connect(self._save_global_size)
+
+        self.text_scale_spin = QtWidgets.QDoubleSpinBox()
+        self.text_scale_spin.setRange(0.5, 10.0)
+        self.text_scale_spin.setSingleStep(0.1)
+        self.text_scale_spin.setDecimals(2)
+        self.text_scale_spin.setValue(float(_size.get("text_scale", 1.0)))
+        self.text_scale_spin.valueChanged.connect(self._save_global_size)
+
+        size_row2.addWidget(QLabel("Text Scale"))
+        size_row2.addWidget(self.text_scale_spin)
 
         # --- Colours section (collapsible) ---
         self.colours_frame = CollapsibleFrame("Colours (per preset)", collapsed=True)
@@ -261,17 +293,24 @@ class buildRadialMenu_UI(QDialog):
         self.desc_lineEdit = QLineEdit()
         editRadialInfo_layout.addWidget(self.desc_lineEdit, row, 1, 1, 2); row += 1
 
-        save_btn = QPushButton("Save"); save_btn.clicked.connect(self.save_sectorInfo)
-        editRadialInfo_layout.addWidget(save_btn, row, 0, 1, 3); row += 1
-
         addInner_btn = QPushButton("Add Inner"); addInner_btn.clicked.connect(self.add_inner)
         editRadialInfo_layout.addWidget(addInner_btn, row, 0, 1, 3); row += 1
 
-        # Script editor (stretchy)
-        self.scriptEditor = QPlainTextEdit()
-        self.scriptEditor.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        editRadialInfo_layout.addWidget(self.scriptEditor, row, 0, 1, 3)
-        editRadialInfo_layout.setRowStretch(row, 1)
+        self.scriptTabs = QtWidgets.QTabWidget()
+        self.scriptTabs.setDocumentMode(True)
+        self.scriptEditor = QPlainTextEdit()  # Primary (legacy "command")
+        self.releaseEditor = QPlainTextEdit()  # RMB release
+        self.doubleEditor = QPlainTextEdit()  # LMB double-click
+        self.scriptTabs.addTab(self.scriptEditor, "Primary (LMB Single-Click)")
+        self.scriptTabs.addTab(self.releaseEditor, "RMB Release")
+        self.scriptTabs.addTab(self.doubleEditor, "LMB Double-Click")
+
+        self.scriptTabs.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        editRadialInfo_layout.addWidget(self.scriptTabs, row, 0, 1, 3)
+        editRadialInfo_layout.setRowStretch(row, 1); row += 1
+
+        save_btn = QPushButton("Save"); save_btn.clicked.connect(self.save_sectorInfo)
+        editRadialInfo_layout.addWidget(save_btn, row, 0, 1, 3)
 
         # Layout stretch rules
         #grid.setColumnStretch(0, 3)
@@ -286,10 +325,12 @@ class buildRadialMenu_UI(QDialog):
             self,
             label_lineEdit=self.label_lineEdit,
             hiddenLabel=self.hiddenLabel,
-            scriptEditor=self.scriptEditor,
+            scriptEditor=self.scriptEditor,  # primary
             hiddenType=self.hiddenType,
             hiddenParent=self.hiddenParent,
-            descEditor=self.desc_lineEdit
+            descEditor=self.desc_lineEdit,
+            releaseEditor=self.releaseEditor,  # NEW
+            doubleEditor=self.doubleEditor  # NEW
         )
         self.left.setMinimumWidth(self._preview_pixel_size().width() + 8)
         self.radial_widget.preset_previewed.connect(self._on_preset_previewed)
@@ -302,18 +343,78 @@ class buildRadialMenu_UI(QDialog):
         # Initial colour form fill
         self._load_colour_controls()
 
+        try:
+            from TDS_library.TDS_radialMenu import radialWidget as rw
+            self._refresh_active_controls(rw.get_active_preset())
+        except Exception:
+            pass
+
+        self._load_smart_mode()
+        self._squash_layouts(self.right, margin=2, spacing=2)
+
     @QtCore.Slot(str)
     def _on_preset_previewed(self, name: str):
         # Mirror combo without triggering commit
         blocker = QtCore.QSignalBlocker(self.preset_combo)
         self.preset_combo.setCurrentText(name)
+        self._refresh_active_controls(name)
         del blocker
 
         # Update colour controls for previewed preset
         self._load_colour_controls_for(name)
-
         # 🔹 Clear any previously selected inner/child in the editor UI
         self._clear_editor_selection()
+
+    def _squash_layouts(self, root: QtWidgets.QWidget, margin=2, spacing=2):
+        """Recursively compact margins/spacing for all child layouts."""
+
+        def _walk_layout(layout: QtWidgets.QLayout):
+            if layout is None:
+                return
+            layout.setContentsMargins(margin, margin, margin, margin)
+            layout.setSpacing(spacing)
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                w = item.widget()
+                if w and w.layout():
+                    _walk_layout(w.layout())
+                c = item.layout()
+                if c:
+                    _walk_layout(c)
+
+        if root.layout():
+            _walk_layout(root.layout())
+        # also walk direct child widgets
+        for w in root.findChildren(QtWidgets.QWidget):
+            if w.layout():
+                _walk_layout(w.layout())
+    def _load_smart_mode(self):
+        from TDS_library.TDS_radialMenu import radialWidget as rw
+        mapping = {"department": "Department", "selection": "Selection"}
+        mode = rw.get_smart_mode()
+        blocker = QtCore.QSignalBlocker(self.smart_mode_combo)
+        self.smart_mode_combo.setCurrentText(mapping.get(mode, "Selection"))
+        del blocker
+
+    def _on_smart_mode_changed(self, text: str):
+        from TDS_library.TDS_radialMenu import radialWidget as rw
+        inv = {"Department": "department", "Selection": "selection"}
+        if rw.set_smart_mode(inv.get(text, "selection")):
+            # optional: force an immediate smart re-eval so user sees it work
+            try:
+                chosen = rw.smart_autoswitch_now()
+                if chosen:
+                    self.preset_combo.blockSignals(True)
+                    self.preset_combo.setCurrentText(chosen)
+                    self.preset_combo.blockSignals(False)
+                    self._on_preset_changed(chosen)
+            except Exception:
+                pass
+            # refresh preview tint etc.
+            try:
+                self.radial_widget.update()
+            except Exception:
+                pass
     def _preview_pixel_size(self) -> QtCore.QSize:
         w = self.radial_widget
         # diameter of rings = 2 * (inner radius + gap + outer width)
@@ -322,6 +423,48 @@ class buildRadialMenu_UI(QDialog):
         extra_desc = 32  # space for the description line
         return QtCore.QSize(d + pad, d + pad + extra_desc)
     # ---------------- helpers ----------------
+    def _load_active_checkbox_for(self, preset_name: str):
+        data = radialWidget._load_data()
+        flag = bool(data.get("presets", {}).get(preset_name, {}).get("active", True))
+        blocker = QtCore.QSignalBlocker(self.active_chk)
+        self.active_chk.setChecked(flag)
+        del blocker
+
+    def _refresh_active_controls(self, preset_name: str):
+        """Enable/disable the Active checkbox and sync its state for the given preset."""
+        is_default = (preset_name == "Default")
+        # grey out when Default
+        self.active_chk.setEnabled(not is_default)
+        # sync the check state to JSON (uses blocker to avoid feedback)
+        self._load_active_checkbox_for(preset_name)
+
+    def _on_active_toggled(self, checked: bool):
+        from TDS_library.TDS_radialMenu import radialWidget as rw
+
+        data = self._load_all()
+        name = self.preset_combo.currentText().strip()
+        if not name:
+            return
+
+        # Hard guard: Default cannot be disabled
+        if name == "Default" and not checked:
+            cmds.warning("The 'Default' preset cannot be deactivated.")
+            blocker = QtCore.QSignalBlocker(self.active_chk)
+            self.active_chk.setChecked(True)
+            del blocker
+            return
+
+        preset = data.setdefault("presets", OrderedDict()).setdefault(name, OrderedDict())
+        preset["active"] = bool(checked)
+        self._save_all(data)
+
+        if not checked and name == rw.get_active_preset():
+            # If you disable the currently-active preset (not Default), jump to Default
+            rw.set_active_preset("Default")
+            blocker = QtCore.QSignalBlocker(self.preset_combo)
+            self.preset_combo.setCurrentText("Default")
+            del blocker
+            self._on_preset_changed("Default")
     def _load_all(self):
         # Use radialWidget's preset-aware loader (also migrates legacy schema)
         return radialWidget._load_data()
@@ -349,9 +492,15 @@ class buildRadialMenu_UI(QDialog):
         if ok and name:
             from TDS_library.TDS_radialMenu import radialWidget as rw
             if rw.create_preset(name):
+                # (optional) make it the active preset in JSON too:
+                rw.set_active_preset(name)  # uses active_preset field :contentReference[oaicite:4]{index=4}
+                blocker = QtCore.QSignalBlocker(self.preset_combo)
                 self.preset_combo.clear()
                 self.preset_combo.addItems(rw.list_presets())
                 self.preset_combo.setCurrentText(name)
+                del blocker
+                # drive full refresh+preview sync
+                self._on_preset_changed(name)
 
     def _dup_preset(self):
         cur = self.preset_combo.currentText()
@@ -359,17 +508,28 @@ class buildRadialMenu_UI(QDialog):
         if ok and name:
             from TDS_library.TDS_radialMenu import radialWidget as rw
             if rw.create_preset(name, clone_from=cur):
+                rw.set_active_preset(name)  # optional, as above
+                blocker = QtCore.QSignalBlocker(self.preset_combo)
                 self.preset_combo.clear()
                 self.preset_combo.addItems(rw.list_presets())
                 self.preset_combo.setCurrentText(name)
+                del blocker
+                self._on_preset_changed(name)
 
     def _del_preset(self):
         cur = self.preset_combo.currentText()
+        if cur == "Default":
+            cmds.warning("The 'Default' preset cannot be deleted.")
+            return
         from TDS_library.TDS_radialMenu import radialWidget as rw
         if rw.delete_preset(cur):
+            blocker = QtCore.QSignalBlocker(self.preset_combo)
             self.preset_combo.clear()
             self.preset_combo.addItems(rw.list_presets())
-            self.preset_combo.setCurrentText(rw.get_active_preset())
+            new_active = rw.get_active_preset()  # delete_preset may have changed it :contentReference[oaicite:5]{index=5}
+            self.preset_combo.setCurrentText(new_active)
+            del blocker
+            self._on_preset_changed(new_active)
     def _save_global_size(self):
         """Auto-save global ui.size to JSON whenever a value changes."""
         data = self._load_all()
@@ -381,6 +541,7 @@ class buildRadialMenu_UI(QDialog):
         size["outer_ring_width"] = int(self.outer_w_spin.value())
         size["child_angle_multiplier"] = float(self.child_angle_mult_spin.value())
         size["inner_hole_radius"] = int(self.inner_hole_spin.value())
+        size["text_scale"] = float(self.text_scale_spin.value())
 
         self._save_all(data)
         self._apply_size_to_preview(size)
@@ -393,7 +554,10 @@ class buildRadialMenu_UI(QDialog):
         w.child_angle_mult = float(size.get("child_angle_multiplier", 1.0))
         w.inner_hole = int(size.get("inner_hole_radius", max(0, int(w.radius * 0.35))))  # ← NEW
         w.outer_radius = w.radius + w.ring_gap + w.outer_ring_width
-
+        w.text_scale = float(size.get("text_scale", 1.0))
+        w.child_font.setPixelSize(int(11 * w.text_scale))
+        if hasattr(w, "inner_font"):
+            w.inner_font.setPixelSize(int(12 * w.text_scale))
         if hasattr(w, "_recalc_display_metrics"):
             w._recalc_display_metrics()
 
@@ -419,7 +583,7 @@ class buildRadialMenu_UI(QDialog):
 
         # ---- Vertical sizing only (so the window can still shrink back later) ----
         base_h = self._base_min.height()
-        chrome_h = 80  # header/margins breathing room
+        chrome_h = 64  # header/margins breathing room
         min_h = max(base_h, pix.height() + chrome_h)
         self.setMinimumHeight(min_h)  # can go up or down
         if self.height() < min_h:
@@ -521,7 +685,9 @@ class buildRadialMenu_UI(QDialog):
 
         inner[label] = {
             "description": label,
-            "command": f"print('{label}')"
+            "command": f"print('{label}')",
+            "on_release": "",
+            "on_double": ""
         }
         preset["inner_section"] = inner
         self._save_all(data)
@@ -532,8 +698,10 @@ class buildRadialMenu_UI(QDialog):
         self.hiddenParent.setText("")
         self.hiddenLabel.setText(label)
         self.label_lineEdit.setText(label)
-        self.scriptEditor.setPlainText(inner[label]["command"])
-        self.desc_lineEdit.setText(inner[label]["description"])
+        self.scriptEditor.setPlainText(inner[label].get("command", ""))
+        self.releaseEditor.setPlainText(inner[label].get("on_release", ""))
+        self.doubleEditor.setPlainText(inner[label].get("on_double", ""))
+        self.desc_lineEdit.setText(inner[label].get("description", ""))
 
     def add_child_to_active(self):
         """Add child under the currently selected inner or the parent of the selected child."""
@@ -569,7 +737,9 @@ class buildRadialMenu_UI(QDialog):
 
         children[child_label] = {
             "description": child_label,
-            "command": f"print('{child_label}')"
+            "command": f"print('{child_label}')",
+            "on_release": "",
+            "on_double": ""
         }
 
         preset["inner_section"] = inner
@@ -581,15 +751,20 @@ class buildRadialMenu_UI(QDialog):
         self.hiddenParent.setText(parent_label)
         self.hiddenLabel.setText(child_label)
         self.label_lineEdit.setText(child_label)
-        self.scriptEditor.setPlainText(children[child_label]["command"])
-        self.desc_lineEdit.setText(children[child_label]["description"])
+        self.scriptEditor.setPlainText(children[child_label].get("command", ""))
+        self.releaseEditor.setPlainText(children[child_label].get("on_release", ""))
+        self.doubleEditor.setPlainText(children[child_label].get("on_double", ""))
+        self.desc_lineEdit.setText(children[child_label].get("description", ""))
 
     # ---------------- save/rename ----------------
     def save_sectorInfo(self):
         curLabel = self.hiddenLabel.text().strip()
         newLabel = self.label_lineEdit.text().strip()
         sel_type = self.hiddenType.text().strip()  # "inner" or "child"
-        script = self.scriptEditor.toPlainText()
+        primary = self.scriptEditor.toPlainText()
+        rmb_rel = self.releaseEditor.toPlainText()
+        lmb_dbl = self.doubleEditor.toPlainText()
+
         desc = self.desc_lineEdit.text().strip()
 
         if not curLabel:
@@ -609,7 +784,9 @@ class buildRadialMenu_UI(QDialog):
                 cmds.warning(f"Inner '{curLabel}' not found.")
                 return
 
-            section_dict[curLabel]["command"] = script
+            section_dict[curLabel]["command"] = primary
+            section_dict[curLabel]["on_release"] = rmb_rel
+            section_dict[curLabel]["on_double"] = lmb_dbl
             section_dict[curLabel]["description"] = desc
 
             renamed = OrderedDict()
@@ -635,7 +812,9 @@ class buildRadialMenu_UI(QDialog):
                 cmds.warning(f"Child '{curLabel}' not found under '{parent_label}'.")
                 return
 
-            children[curLabel]["command"] = script
+            children[curLabel]["command"] = primary
+            children[curLabel]["on_release"] = rmb_rel
+            children[curLabel]["on_double"] = lmb_dbl
             children[curLabel]["description"] = desc
 
             renamed = OrderedDict()
@@ -651,6 +830,25 @@ class buildRadialMenu_UI(QDialog):
         self._save_all(data)
         self._refresh_preview(data)
         self.hiddenLabel.setText(newLabel)
+
+        w = self.radial_widget
+
+        if sel_type == "inner":
+            # highlight the renamed/edited inner slice
+            w.active_sector = newLabel
+            w.hovered_children = w.inner_sections.get(newLabel, {}).get("children", OrderedDict())
+            w.hovered_child_angles = w.get_child_angles() if w.hovered_children else {}
+            w.outer_active_sector = None
+
+        elif sel_type == "child":
+            # keep parent locked and highlight the renamed/edited child
+            parent_label = self.hiddenParent.text().strip()
+            w.active_sector = parent_label
+            w.hovered_children = w.inner_sections.get(parent_label, {}).get("children", OrderedDict())
+            w.hovered_child_angles = w.get_child_angles() if w.hovered_children else {}
+            w.outer_active_sector = newLabel
+
+        w.update()  # repaint now (no mouse move required)
 
     def _load_colour_controls_for(self, preset_name: str):
         data = radialWidget._load_data()
@@ -703,14 +901,21 @@ class buildRadialMenu_UI(QDialog):
         self.label_lineEdit.clear()
         self.scriptEditor.clear()
         self.desc_lineEdit.clear()
+        self.releaseEditor.clear()
+        self.doubleEditor.clear()
 
     def _on_preset_changed(self, name):
+        if not name:
+            return
         if radialWidget.set_active_preset(name):
             data = self._load_all()
             self._refresh_preview(data)
 
             # Update colour controls to the newly active preset
             self._load_colour_controls_for(name)
+            self._refresh_active_controls(name)
+            self._load_active_checkbox_for(name)
+
 
             # Keep scroll-preview in sync and apply colours/sections immediately
             self.radial_widget._preview_name = name

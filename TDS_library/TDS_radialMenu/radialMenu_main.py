@@ -14,6 +14,24 @@ try:
 except NameError:
     radial_enabled = {"state": True}
 
+# in radialMenu_main.py (your small wrapper/entry helpers)
+from TDS_library.TDS_radialMenu import radialWidget as rw
+
+def toggle_smart_preset(force_state=None):
+    """Toggle smart preset on/off.
+    If force_state is True/False, explicitly set it.
+    If None, just flip current state."""
+    cur = rw.is_smart_preset_enabled()
+    if force_state is None:
+        new_state = not cur
+    else:
+        new_state = bool(force_state)
+
+    rw.set_smart_preset_enabled(new_state)
+    msg = "ON" if new_state else "OFF"
+    cmds.inViewMessage(amg=f"Smart Preset: <hl>{msg}</hl>", pos='topCenter', fade=True)
+
+
 def toggle_radial_menu(force_state=None):
     if force_state is not None:
         radial_enabled["state"] = bool(force_state)

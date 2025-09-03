@@ -1,5 +1,8 @@
 from .TDS_buildRadialMenu_UI import buildRadialMenu_UI
 
+from . import radialWidget
+radialWidget.set_live_reload(False)
+
 import importlib
 importlib.reload(TDS_buildRadialMenu_UI)
 
