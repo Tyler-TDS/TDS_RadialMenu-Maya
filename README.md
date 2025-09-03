@@ -51,7 +51,6 @@ select_preset("Rigging")
 
 Toggle Smart Mode:
 ```python
-from TDS_library.TDS_radialMenu import radialMenu_main as rm
 rm.toggle_smart_preset()
 ```
 
