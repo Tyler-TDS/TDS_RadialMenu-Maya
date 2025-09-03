@@ -10,7 +10,7 @@
 - **Inner / outer ring** with nested children; hover to reveal children, LMB Single-Click, LMB Double-Click and Release scripts.
 - **Preset system** (scroll wheel to swap presets) with per‑preset colours, global size controls.
 - **Editor UI** to add/remove/reorder sectors and edit commands and descriptions.
-- **Smart Mode** auto detect department/selection and show the corresponding preset
+- **Smart Mode** auto detect department/selection and show the corresponding preset. Department is pulled from main department drop-down in main Maya window
 
 ---
 
