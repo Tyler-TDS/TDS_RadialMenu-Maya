@@ -7,9 +7,10 @@
 
 
 ## Features
-- **Inner / outer ring** with nested children; hover to reveal children, release to run.
+- **Inner / outer ring** with nested children; hover to reveal children, LMB Single-Click, LMB Double-Click and Release scripts.
 - **Preset system** (scroll wheel to swap presets) with per‑preset colours, global size controls.
 - **Editor UI** to add/remove/reorder sectors and edit commands and descriptions.
+- **Smart Mode** auto detect department/selection and show the corresponding preset
 
 ---
 
@@ -46,6 +47,12 @@ Swap presets on the fly:
 ```python
 from TDS_library.TDS_radialMenu.radialMenu_main import select_preset
 select_preset("Rigging")
+```
+
+Toggle Smart Mode:
+```python
+from TDS_library.TDS_radialMenu import radialMenu_main as rm
+rm.toggle_smart_preset()
 ```
 
 ### Editor UI
