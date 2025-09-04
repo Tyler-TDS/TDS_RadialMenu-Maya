@@ -1,6 +1,7 @@
 from PySide2 import QtWidgets, QtCore, QtGui
 from PySide2.QtWidgets import (QMainWindow, QDialog, QGridLayout, QVBoxLayout, QLabel, QLineEdit, QPushButton, QPlainTextEdit,
-                               QHBoxLayout)
+                               QHBoxLayout, QListWidgetItem, QListWidget)
+
 import re
 import maya.OpenMayaUI as omui
 import maya.cmds as cmds
@@ -16,6 +17,142 @@ importlib.reload(radialWidget)
 RadialMenuWidget = radialWidget.RadialMenuWidget
 SCRIPT_DIR = Path(__file__).resolve().parent
 menuInfo_filePath = SCRIPT_DIR / "radialMenu_info.json"
+
+class IconPickerDialog(QDialog):
+    def __init__(self, parent=None, initial_filter=""):
+        super().__init__(parent)
+        self.setWindowTitle("Pick Icon")
+        self.resize(720, 520)
+        self._cleared = False
+
+        v = QVBoxLayout(self)
+
+        # Tabs: Maya | Folder
+        self.tabs = QtWidgets.QTabWidget(self)
+        v.addWidget(self.tabs, 1)
+
+        self._maya_panel = self._make_panel("Filter Maya icons…")
+        self._file_panel = self._make_panel("Filter custom icons…")
+
+        self.tabs.addTab(self._maya_panel["widget"], "Maya Icons")
+        self.tabs.addTab(self._file_panel["widget"], "Custom Icons")
+
+        # Buttons
+        btn_row = QHBoxLayout()
+        clear_btn = QPushButton("Clear Icon")
+        ok = QPushButton("OK", self)
+        cancel = QPushButton("Cancel", self)
+        btn_row.addStretch(1)
+        btn_row.addWidget(clear_btn)
+        btn_row.addWidget(ok)
+        btn_row.addWidget(cancel)
+        v.addLayout(btn_row)
+
+        # ---- Data sources ----
+        # Maya resource icons
+        maya_names = cmds.resourceManager(nameFilter="*.png") or []
+        self._maya_items = [("maya", n) for n in sorted(set(maya_names))]
+
+        # Local folder icons
+        self._icons_dir = SCRIPT_DIR / "icons"
+        exts = {".png", ".jpg", ".jpeg", ".svg", ".bmp", ".tif", ".tiff", ".webp"}
+        self._file_items = []
+        if self._icons_dir.exists():
+            for p in sorted(self._icons_dir.iterdir()):
+                if p.is_file() and p.suffix.lower() in exts:
+                    self._file_items.append(("file", str(p)))
+
+        # Populate
+        self._populate_list(self._maya_panel["list"], self._maya_items)
+        self._populate_list(self._file_panel["list"], self._file_items)
+
+        # Filtering (per tab)
+        self._maya_panel["filter"].textChanged.connect(
+            lambda t: self._apply_filter(self._maya_panel["list"], self._maya_items, t)
+        )
+        self._file_panel["filter"].textChanged.connect(
+            lambda t: self._apply_filter(self._file_panel["list"], self._file_items, t)
+        )
+
+        # Interactions
+        self._maya_panel["list"].itemDoubleClicked.connect(lambda *_: self.accept())
+        self._file_panel["list"].itemDoubleClicked.connect(lambda *_: self.accept())
+        ok.clicked.connect(self.accept)
+        cancel.clicked.connect(self.reject)
+        clear_btn.clicked.connect(self._on_clear_clicked)
+
+        # Optional starting filter
+        if initial_filter:
+            self._maya_panel["filter"].setText(initial_filter)
+
+        # Disable Folder tab if there are no files/folder
+        if not self._file_items:
+            idx = self.tabs.indexOf(self._file_panel["widget"])
+            if idx >= 0:
+                self.tabs.setTabEnabled(idx, False)
+
+    # ---- helpers ----
+    def _make_panel(self, placeholder: str):
+        w = QtWidgets.QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+
+        filt = QLineEdit(w)
+        filt.setPlaceholderText(placeholder)
+        lay.addWidget(filt)
+
+        lst = QListWidget(w)
+        lst.setViewMode(QListWidget.IconMode)
+        lst.setResizeMode(QListWidget.Adjust)
+        lst.setUniformItemSizes(True)
+        lst.setWrapping(True)
+        lst.setIconSize(QtCore.QSize(32, 32))
+        lst.setSpacing(6)
+        lay.addWidget(lst, 1)
+
+        return {"widget": w, "filter": filt, "list": lst}
+
+    def _populate_list(self, list_widget: QListWidget, items):
+        list_widget.clear()
+        for kind, payload in items:
+            if kind == "maya":
+                ico = QtGui.QIcon(f":/{payload}")
+                label = payload
+            else:  # file
+                ico = QtGui.QIcon(payload)
+                label = Path(payload).name
+            it = QListWidgetItem(ico, label)
+            it.setData(QtCore.Qt.UserRole, (kind, payload))
+            list_widget.addItem(it)
+
+    def _apply_filter(self, list_widget: QListWidget, items, text: str):
+        t = (text or "").lower().strip()
+        if not t:
+            self._populate_list(list_widget, items)
+            return
+        filt = []
+        for kind, payload in items:
+            hay = payload if kind == "maya" else Path(payload).name
+            if t in hay.lower():
+                filt.append((kind, payload))
+        self._populate_list(list_widget, filt)
+
+    def _on_clear_clicked(self):
+        self._cleared = True
+        self.accept()
+
+    @property
+    def selected_icon(self):
+        # Return selection from the active tab
+        panel = self._maya_panel if self.tabs.currentIndex() == 0 else self._file_panel
+        it = panel["list"].currentItem()
+        return it.data(QtCore.Qt.UserRole) if it else None
+
+    @property
+    def was_cleared(self):
+        return self._cleared
+
+
 
 class CollapsibleFrame(QtWidgets.QFrame):
     """A simple collapsible frame similar to Maya frameLayout."""
@@ -122,8 +259,8 @@ class buildRadialMenu_UI(QDialog):
 
         self.left = QtWidgets.QWidget()
         radialShow_layout = QVBoxLayout(self.left)
-        radialShow_layout.setContentsMargins(0, 0, 0, 0)
-        radialShow_layout.setSpacing(0)
+        radialShow_layout.setContentsMargins(6, 6, 6, 6)
+        radialShow_layout.setSpacing(6)
 
         self.right = QtWidgets.QWidget()
         editRadialInfo_layout = QGridLayout(self.right)
@@ -135,89 +272,138 @@ class buildRadialMenu_UI(QDialog):
         self.splitter.addWidget(self.right)
         self.splitter.setStretchFactor(0, 3)
         self.splitter.setStretchFactor(1, 2)
-        #self.splitter.setSizes([800, 400])
 
         grid = QGridLayout(self)
         grid.setContentsMargins(10, 10, 10, 10)
         grid.setSpacing(0)
         grid.addWidget(self.splitter, 0, 0)
 
-
-
-        # Hidden context widgets (used by preview widget to tell us selection)
-        self.hiddenLabel  = QLabel("")
-        self.hiddenType   = QLabel("")
+        # Hidden context widgets
+        self.hiddenLabel = QLabel("")
+        self.hiddenType = QLabel("")
         self.hiddenParent = QLabel("")
 
-        # --- Presets ---
-        editRadialInfo_layout.addWidget(QLabel("Preset:"), 0, 0, 1, 1)
+        # ============ LEFT: Preset block ============ #
+        left_preset = QtWidgets.QFrame(self.left)
+        left_preset.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+        left_preset.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        lp = QtWidgets.QGridLayout(left_preset)
+        lp.setContentsMargins(6, 6, 6, 6)
+        lp.setHorizontalSpacing(6)
+        lp.setVerticalSpacing(4)
+
+        # Preset selector
+        lp.addWidget(QLabel("Preset:"), 0, 0, 1, 1)
         from TDS_library.TDS_radialMenu import radialWidget as rw
-        self.preset_combo = QtWidgets.QComboBox()
+        self.preset_combo = QtWidgets.QComboBox(left_preset)
         self.preset_combo.addItems(rw.list_presets())
         self.preset_combo.setCurrentText(rw.get_active_preset())
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
-        editRadialInfo_layout.addWidget(self.preset_combo, 0, 1, 1, 2)
+        lp.addWidget(self.preset_combo, 0, 1, 1, 2)
 
-        row = 1
+        # New / Duplicate / Delete
         preset_btns = QHBoxLayout()
-        btn_new = QPushButton("New");      btn_new.clicked.connect(self._new_preset)
-        btn_dup = QPushButton("Duplicate");btn_dup.clicked.connect(self._dup_preset)
-        btn_del = QPushButton("Delete");   btn_del.clicked.connect(self._del_preset)
-        for b in (btn_new, btn_dup, btn_del): preset_btns.addWidget(b)
-        editRadialInfo_layout.addLayout(preset_btns, row, 0, 1, 3); row += 1
+        btn_new = QPushButton("New");
+        btn_new.clicked.connect(self._new_preset)
+        btn_dup = QPushButton("Duplicate");
+        btn_dup.clicked.connect(self._dup_preset)
+        btn_del = QPushButton("Delete");
+        btn_del.clicked.connect(self._del_preset)
+        for b in (btn_new, btn_dup, btn_del):
+            preset_btns.addWidget(b)
+        lp.addLayout(preset_btns, 1, 0, 1, 3)
 
-        # --- Active toggle ---
+        # Active + Show preset label
         self.active_chk = QtWidgets.QCheckBox("Active (included in scroll)")
         self.active_chk.setToolTip(
-            "When off, this preset is skipped by the mouse wheel.\n"
-            "Smart mode ignores this and can still select it."
-        )
+            "When off, this preset is skipped by the mouse wheel.\nSmart mode ignores this and can still select it.")
         self.active_chk.toggled.connect(self._on_active_toggled)
-        editRadialInfo_layout.addWidget(self.active_chk, row, 0, 1, 3)
-        row += 1
 
-        self.smart_mode_combo = QtWidgets.QComboBox()
+        self.show_preset_label_chk = QtWidgets.QCheckBox("Show preset label")
+        self.show_preset_label_chk.setToolTip("Draw the preset name inside the inner hole")
+        self.show_preset_label_chk.toggled.connect(self._on_show_preset_label_toggled)
+
+        active_row = QHBoxLayout()
+        active_row.addWidget(self.active_chk)
+        active_row.addSpacing(12)
+        active_row.addWidget(self.show_preset_label_chk)
+        active_row.addStretch(1)
+        lp.addLayout(active_row, 2, 0, 1, 3)
+
+        # Smart mode row
+        lp.addWidget(QLabel("Smart mode:"), 3, 0, 1, 1)
+        self.smart_mode_combo = QtWidgets.QComboBox(left_preset)
         self.smart_mode_combo.addItems(["Department", "Selection"])
         self.smart_mode_combo.currentTextChanged.connect(self._on_smart_mode_changed)
-        editRadialInfo_layout.addWidget(QLabel("Smart mode: (Selection is WIP)"), row, 0, 1, 1)
-        editRadialInfo_layout.addWidget(self.smart_mode_combo, row, 1, 1, 2)
-        row += 1
+        lp.addWidget(self.smart_mode_combo, 3, 1, 1, 2)
 
-        # --- Size controls ---
-        editRadialInfo_layout.addWidget(QLabel("Menu Size (global):"), row, 0, 1, 3); row += 1
+        # ============ RIGHT: Editor ============ #
+        row = 0
 
-        self.radius_spin = QtWidgets.QSpinBox();       self.radius_spin.setRange(50, 2000); self.radius_spin.setSingleStep(5)
-        self.ring_gap_spin = QtWidgets.QSpinBox();     self.ring_gap_spin.setRange(0, 400); self.ring_gap_spin.setSingleStep(1)
-        self.outer_w_spin = QtWidgets.QSpinBox();      self.outer_w_spin.setRange(0, 800); self.outer_w_spin.setSingleStep(1)
-        self.child_angle_mult_spin = QtWidgets.QDoubleSpinBox()
-        self.child_angle_mult_spin.setRange(0.1, 8.0); self.child_angle_mult_spin.setSingleStep(0.1); self.child_angle_mult_spin.setDecimals(2)
+        # --- Size controls (global) — NO FRAME ---
+        size_wrap = QtWidgets.QWidget(self.right)
+        sf = QtWidgets.QGridLayout(size_wrap)
+        sf.setContentsMargins(0, 0, 0, 0)  # no extra padding
+        sf.setHorizontalSpacing(4)
+        sf.setVerticalSpacing(2)
 
-        self.inner_hole_spin = QtWidgets.QSpinBox()
-        self.inner_hole_spin.setRange(0, 1000)
+        sf.addWidget(QLabel("Menu Size (global):"), 0, 0, 1, 3)
+
+        self.radius_spin = QtWidgets.QSpinBox();
+        self.radius_spin.setRange(50, 2000);
+        self.radius_spin.setSingleStep(5)
+        self.ring_gap_spin = QtWidgets.QSpinBox();
+        self.ring_gap_spin.setRange(0, 400);
+        self.ring_gap_spin.setSingleStep(1)
+        self.outer_w_spin = QtWidgets.QSpinBox();
+        self.outer_w_spin.setRange(0, 800);
+        self.outer_w_spin.setSingleStep(1)
+        self.child_angle_mult_spin = QtWidgets.QDoubleSpinBox();
+        self.child_angle_mult_spin.setRange(0.1, 8.0);
+        self.child_angle_mult_spin.setSingleStep(0.1);
+        self.child_angle_mult_spin.setDecimals(2)
+        self.inner_hole_spin = QtWidgets.QSpinBox();
+        self.inner_hole_spin.setRange(0, 1000);
         self.inner_hole_spin.setSingleStep(1)
 
-        size_row1 = QHBoxLayout()
-        size_row1.setContentsMargins(0, 0, 0, 0)
+        size_row1 = QHBoxLayout();
+        size_row1.setContentsMargins(0, 0, 0, 0);
         size_row1.setSpacing(4)
-        size_row1.addWidget(QLabel("Radius"))
+        size_row1.addWidget(QLabel("Radius"));
         size_row1.addWidget(self.radius_spin)
-        size_row1.addWidget(QLabel("Ring Gap"))
+        size_row1.addWidget(QLabel("Ring Gap"));
         size_row1.addWidget(self.ring_gap_spin)
 
-        size_row2 = QHBoxLayout()
-        size_row2.setContentsMargins(0, 0, 0, 0)
+        size_row2 = QHBoxLayout();
+        size_row2.setContentsMargins(0, 0, 0, 0);
         size_row2.setSpacing(4)
-        size_row2.addWidget(QLabel("Outer Width"))
+        size_row2.addWidget(QLabel("Outer Width"));
         size_row2.addWidget(self.outer_w_spin)
-        size_row2.addWidget(QLabel("Child Angle ×"))
+        size_row2.addWidget(QLabel("Child Angle ×"));
         size_row2.addWidget(self.child_angle_mult_spin)
-        size_row2.addWidget(QLabel("Inner Hole"))
-        size_row2.addWidget(self.inner_hole_spin)  # ← NEW
+        size_row2.addWidget(QLabel("Inner Hole"));
+        size_row2.addWidget(self.inner_hole_spin)
 
+        # Text scale — create ONCE here; set its value after loading JSON below
+        self.text_scale_spin = QtWidgets.QDoubleSpinBox()
+        self.text_scale_spin.setRange(0.5, 10.0);
+        self.text_scale_spin.setSingleStep(0.1);
+        self.text_scale_spin.setDecimals(2)
+        size_row2.addWidget(QLabel("Text Scale"));
+        size_row2.addWidget(self.text_scale_spin)
 
-        editRadialInfo_layout.addLayout(size_row1, row, 0, 1, 3)
-        row += 1
-        editRadialInfo_layout.addLayout(size_row2, row, 0, 1, 3)
+        self.icon_scale_spin = QtWidgets.QDoubleSpinBox()
+        self.icon_scale_spin.setRange(0.5, 10.0)
+        self.icon_scale_spin.setSingleStep(0.1)
+        self.icon_scale_spin.setDecimals(2)
+        size_row2.addWidget(QLabel("Icon Scale"))
+        size_row2.addWidget(self.icon_scale_spin)
+
+        sf.addLayout(size_row1, 1, 0, 1, 3)
+        sf.addLayout(size_row2, 2, 0, 1, 3)
+
+        # Add to the right column
+        editRadialInfo_layout.addWidget(size_wrap, row, 0, 1, 3)
         row += 1
 
         # Load size from JSON
@@ -228,24 +414,43 @@ class buildRadialMenu_UI(QDialog):
         self.outer_w_spin.setValue(int(_size.get("outer_ring_width", 25)))
         self.child_angle_mult_spin.setValue(float(_size.get("child_angle_multiplier", 1.0)))
         self.inner_hole_spin.setValue(int(_size.get("inner_hole_radius", max(0, int(_size.get("radius", 150) * 0.35)))))
-        for w in (self.radius_spin, self.ring_gap_spin, self.outer_w_spin, self.child_angle_mult_spin, self.inner_hole_spin):
+
+        # NOTE: don't recreate text_scale_spin here — just set it and connect
+        self.text_scale_spin.setValue(float(_size.get("text_scale", 1.0)))
+        self.icon_scale_spin.setValue(float(_size.get("icon_scale", 1.0)))
+        self.text_scale_spin.valueChanged.connect(self._save_global_size)
+        self.icon_scale_spin.valueChanged.connect(self._save_global_size)
+
+        for w in (self.radius_spin, self.ring_gap_spin, self.outer_w_spin,
+                  self.child_angle_mult_spin, self.inner_hole_spin):
             w.valueChanged.connect(self._save_global_size)
 
-        self.text_scale_spin = QtWidgets.QDoubleSpinBox()
-        self.text_scale_spin.setRange(0.5, 10.0)
-        self.text_scale_spin.setSingleStep(0.1)
-        self.text_scale_spin.setDecimals(2)
-        self.text_scale_spin.setValue(float(_size.get("text_scale", 1.0)))
-        self.text_scale_spin.valueChanged.connect(self._save_global_size)
 
-        size_row2.addWidget(QLabel("Text Scale"))
-        size_row2.addWidget(self.text_scale_spin)
 
-        # --- Colours section (collapsible) ---
-        self.colours_frame = CollapsibleFrame("Colours (per preset)", collapsed=True)
-        editRadialInfo_layout.addWidget(self.colours_frame, row, 0, 1, 3)
+        # Separator between "Menu Size" controls and the Colours frame
+        self.size_sep = QtWidgets.QFrame(self.right)
+        self.size_sep.setFrameShape(QtWidgets.QFrame.HLine)
+        self.size_sep.setFrameShadow(QtWidgets.QFrame.Sunken)
+        # optional breathing room
+        self.size_sep.setStyleSheet("margin-top:6px; margin-bottom:6px;")
+
+        editRadialInfo_layout.addWidget(self.size_sep, row, 0, 1, 3)
         row += 1
 
+        # --- Colours section (collapsible) ---
+        self.colours_frame = CollapsibleFrame("Colours (per preset)", collapsed=False)
+        editRadialInfo_layout.addWidget(self.colours_frame, row, 0, 1, 3);
+        row += 1
+        # Separator under the CollapsibleFrame
+        self.colours_sep = QtWidgets.QFrame(self.right)
+        self.colours_sep.setFrameShape(QtWidgets.QFrame.HLine)
+        self.colours_sep.setFrameShadow(QtWidgets.QFrame.Sunken)
+        # optional: some breathing room
+        self.colours_sep.setStyleSheet("margin-top:6px; margin-bottom:6px;")
+        editRadialInfo_layout.addWidget(self.colours_sep, row, 0, 1, 3)
+        row += 1
+
+        # Colour keys and defaults
         self._colour_keys = OrderedDict([
             ("inner_colour", "Inner Fill"),
             ("innerHighlight_colour", "Inner Hover"),
@@ -255,82 +460,176 @@ class buildRadialMenu_UI(QDialog):
             ("child_text_color", "Child Text"),
             ("child_textOutline_color", "Child Text Outline"),
         ])
-        self._colour_buttons = {}  # key -> QPushButton
+        self._default_colours = {
+            "inner_colour": "#96454545",
+            "innerHighlight_colour": "#96282828",
+            "innerLine_colour": "#1E1E1E",
+            "child_colour": "#FF7ECEFF",
+            "childLine_colour": "#1E1E1E",
+            "child_text_color": "#FFFFFF",
+            "child_textOutline_color": "#000000",
+            "child_outline_thickness": 1.2,
+        }
 
-        def add_colour_row(r_key, nice, r_idx):
-            lbl = QLabel(nice + ":")
-            lbl.setMinimumWidth(120)
+        self._color_btns = {}
+        self._color_edits = {}
 
-            pick = QPushButton()
-            pick.setFixedWidth(60)
-            pick.clicked.connect(lambda _=None, k=r_key, b=pick: self._pick_colour(k, b))
-            self._colour_buttons[r_key] = pick
+        grid2 = QtWidgets.QGridLayout()
+        grid2.setHorizontalSpacing(8)
+        grid2.setVerticalSpacing(4)
+        self.colours_frame.body_layout.addLayout(grid2, 0, 0, 1, 3)
 
-            self.colours_frame.body_layout.addWidget(lbl, r_idx, 0, 1, 1)
-            self.colours_frame.body_layout.addWidget(pick, r_idx, 1, 1, 2)
+        left_keys = ["inner_colour", "innerHighlight_colour", "innerLine_colour"]
+        right_keys = ["child_colour", "childLine_colour", "child_text_color", "child_textOutline_color"]
 
-        row_c = 0
-        for k, nice in self._colour_keys.items():
-            add_colour_row(k, nice, row_c)
-            row_c += 1
+        def _add_color_row(key, label_text, row_idx, col_idx):
+            lbl = QLabel(label_text + ":")
+            sw = QPushButton();
+            sw.setFixedSize(80, 22);
+            sw.setToolTip("Click to pick colour")
+            sw.clicked.connect(lambda _=None, k=key: self._open_color_dialog(k))
+            he = QLineEdit();
+            he.setPlaceholderText("#AARRGGBB or #RRGGBB");
+            he.setFixedWidth(110)
+            he.editingFinished.connect(lambda k=key, w=he: self._on_hex_edit(k, w))
+            reset = QtWidgets.QToolButton();
+            reset.setText("↺");
+            reset.setToolTip("Reset to default")
+            reset.clicked.connect(lambda _=None, k=key: self._set_color_widgets(k, self._default_colours[k]))
 
-        # outline thickness in the same collapsible body
-        self.colours_frame.body_layout.addWidget(QLabel("Child Text Outline Thickness:"), row_c, 0, 1, 1)
+            row_lay = QHBoxLayout();
+            row_lay.setContentsMargins(0, 0, 0, 0);
+            row_lay.setSpacing(6)
+            row_lay.addWidget(sw);
+            row_lay.addWidget(he);
+            row_lay.addWidget(reset)
+
+            c = 0 if col_idx == 0 else 2
+            grid2.addWidget(lbl, row_idx, c, 1, 1)
+            grid2.addLayout(row_lay, row_idx, c + 1, 1, 1)
+
+            self._color_btns[key] = sw
+            self._color_edits[key] = he
+
+        for i, k in enumerate(left_keys):
+            _add_color_row(k, self._colour_keys[k], i, 0)
+        for i, k in enumerate(right_keys):
+            _add_color_row(k, self._colour_keys[k], i, 1)
+
+        # ---- Outline thickness (slider + spinbox) ----
         self.outline_thickness = QtWidgets.QDoubleSpinBox()
         self.outline_thickness.setRange(0.0, 10.0)
         self.outline_thickness.setSingleStep(0.1)
         self.outline_thickness.setDecimals(2)
-        self.outline_thickness.valueChanged.connect(self._save_colours)
-        self.colours_frame.body_layout.addWidget(self.outline_thickness, row_c, 1, 1, 1)
-        row_c += 1
+
+        self.outline_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.outline_slider.setRange(0, 100)  # maps to 0.0 - 10.0
+
+        def _spin_to_slider(v):
+            self.outline_slider.blockSignals(True)
+            self.outline_slider.setValue(int(round(v * 10)))
+            self.outline_slider.blockSignals(False)
+
+        def _slider_to_spin(v):
+            self.outline_thickness.blockSignals(True)
+            self.outline_thickness.setValue(v / 10.0)
+            self.outline_thickness.blockSignals(False)
+            self._save_colours()
+
+        self.outline_thickness.valueChanged.connect(lambda v: (_spin_to_slider(v), self._save_colours()))
+        self.outline_slider.valueChanged.connect(_slider_to_spin)
+
+        # Label for thickness (this was the missing piece)
+        thick_lbl = QLabel("Child Text Outline Thickness:")
+
+        # Prime colour controls with current preset (after widgets exist)
+        self._loading_colours = True
+        initial = radialWidget.get_active_preset()
+        self._load_colour_controls_for(initial)  # safe now: outline widgets exist
+        self._refresh_active_controls(initial)
+        self._load_active_checkbox_for(initial)
+        self._loading_colours = False
+
+        # Place thickness row spanning both columns
+        row_after = max(len(left_keys), len(right_keys)) + 1
+        grid2.addWidget(thick_lbl, row_after, 0, 1, 1)
+        row_lay_thick = QHBoxLayout()
+        row_lay_thick.addWidget(self.outline_slider)
+        row_lay_thick.addWidget(self.outline_thickness)
+        row_lay_thick.addStretch(1)
+        grid2.addLayout(row_lay_thick, row_after, 1, 1, 3)
+
+        # Reset all colours
+        reset_all = QtWidgets.QPushButton("Reset All Colours")
+        reset_all.setToolTip("Reset all colours to defaults for this preset")
+        reset_all.clicked.connect(
+            lambda: [self._set_color_widgets(k, self._default_colours[k]) for k in self._colour_keys])
+        self.colours_frame.body_layout.addWidget(reset_all, row_after + 1, 0, 1, 3)
 
         # --- Label/Desc/Save/Add ---
         editRadialInfo_layout.addWidget(QLabel("Label:"), row, 0, 1, 1)
+        label_row = QHBoxLayout()
         self.label_lineEdit = QLineEdit()
-        editRadialInfo_layout.addWidget(self.label_lineEdit, row, 1, 1, 2); row += 1
+
+        self.show_label_chk = QtWidgets.QCheckBox("Show label")
+        self.show_label_chk.setToolTip("Toggle whether this INNER section draws its label")
+        self.show_label_chk.toggled.connect(self._on_show_label_toggled)
+
+        self.pick_icon_btn = QPushButton("Icon…")
+        self.pick_icon_btn.setToolTip("Pick a Maya resource or file icon for this INNER section")
+        self.pick_icon_btn.clicked.connect(self._open_icon_picker)
+
+        label_row.addWidget(self.label_lineEdit)
+        label_row.addWidget(self.show_label_chk)
+        label_row.addWidget(self.pick_icon_btn)
+        editRadialInfo_layout.addLayout(label_row, row, 1, 1, 2);
+        row += 1
 
         editRadialInfo_layout.addWidget(QLabel("Description:"), row, 0, 1, 1)
         self.desc_lineEdit = QLineEdit()
-        editRadialInfo_layout.addWidget(self.desc_lineEdit, row, 1, 1, 2); row += 1
+        editRadialInfo_layout.addWidget(self.desc_lineEdit, row, 1, 1, 2);
+        row += 1
 
-        addInner_btn = QPushButton("Add Inner"); addInner_btn.clicked.connect(self.add_inner)
-        editRadialInfo_layout.addWidget(addInner_btn, row, 0, 1, 3); row += 1
+        addInner_btn = QPushButton("Add Inner");
+        addInner_btn.clicked.connect(self.add_inner)
+        editRadialInfo_layout.addWidget(addInner_btn, row, 0, 1, 3);
+        row += 1
 
-        self.scriptTabs = QtWidgets.QTabWidget()
+        self.scriptTabs = QtWidgets.QTabWidget();
         self.scriptTabs.setDocumentMode(True)
-        self.scriptEditor = QPlainTextEdit()  # Primary (legacy "command")
-        self.releaseEditor = QPlainTextEdit()  # RMB release
-        self.doubleEditor = QPlainTextEdit()  # LMB double-click
+        self.scriptEditor = QPlainTextEdit()
+        self.releaseEditor = QPlainTextEdit()
+        self.doubleEditor = QPlainTextEdit()
         self.scriptTabs.addTab(self.scriptEditor, "Primary (LMB Single-Click)")
         self.scriptTabs.addTab(self.releaseEditor, "RMB Release")
         self.scriptTabs.addTab(self.doubleEditor, "LMB Double-Click")
-
         self.scriptTabs.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         editRadialInfo_layout.addWidget(self.scriptTabs, row, 0, 1, 3)
-        editRadialInfo_layout.setRowStretch(row, 1); row += 1
+        editRadialInfo_layout.setRowStretch(row, 1);
+        row += 1
 
-        save_btn = QPushButton("Save"); save_btn.clicked.connect(self.save_sectorInfo)
+        save_btn = QPushButton("Save");
+        save_btn.clicked.connect(self.save_sectorInfo)
         editRadialInfo_layout.addWidget(save_btn, row, 0, 1, 3)
 
-        # Layout stretch rules
-        #grid.setColumnStretch(0, 3)
-        #grid.setColumnStretch(1, 2)
-        #grid.setRowStretch(0, 1)
         editRadialInfo_layout.setColumnStretch(0, 0)
         editRadialInfo_layout.setColumnStretch(1, 1)
         editRadialInfo_layout.setColumnStretch(2, 0)
 
-        # --- Preview widget ---
+        radialShow_layout.addWidget(left_preset, 0)
+
+        # --- Preview widget (created AFTER editors so we can pass pointers) ---
         self.radial_widget = RadialMenuWidget(
             self,
             label_lineEdit=self.label_lineEdit,
             hiddenLabel=self.hiddenLabel,
-            scriptEditor=self.scriptEditor,  # primary
+            scriptEditor=self.scriptEditor,
             hiddenType=self.hiddenType,
             hiddenParent=self.hiddenParent,
             descEditor=self.desc_lineEdit,
-            releaseEditor=self.releaseEditor,  # NEW
-            doubleEditor=self.doubleEditor  # NEW
+            releaseEditor=self.releaseEditor,
+            doubleEditor=self.doubleEditor,
+            label_check=self.show_label_chk,
         )
         self.left.setMinimumWidth(self._preview_pixel_size().width() + 8)
         self.radial_widget.preset_previewed.connect(self._on_preset_previewed)
@@ -338,19 +637,209 @@ class buildRadialMenu_UI(QDialog):
         self.radial_widget.setFixedSize(self._preview_pixel_size())
         self.radial_widget.updateGeometry()
 
-        radialShow_layout.addWidget(self.radial_widget, 0, QtCore.Qt.AlignCenter)
+        # Add preview under the preset block
+        radialShow_layout.addWidget(self.radial_widget, 1, QtCore.Qt.AlignCenter)
+        radialShow_layout.setStretch(0, 0)
+        radialShow_layout.setStretch(1, 1)
 
-        # Initial colour form fill
+        # Initial colour form fill + controls sync (guarded so we don't save transient 0)
+        self._loading_colours = True
         self._load_colour_controls()
-
         try:
             from TDS_library.TDS_radialMenu import radialWidget as rw
             self._refresh_active_controls(rw.get_active_preset())
+            self._load_show_preset_label_checkbox_for(rw.get_active_preset())
         except Exception:
             pass
+        self._loading_colours = False
 
         self._load_smart_mode()
         self._squash_layouts(self.right, margin=2, spacing=2)
+
+        # Keep 50/50 initial split
+        def _expand_right_initially():
+            left_min = self.left.minimumWidth()
+            handle = max(1, self.splitter.handleWidth())
+            margins = self.contentsMargins().left() + self.contentsMargins().right()
+            required_total = 2 * left_min + handle + margins
+            if self.width() < required_total:
+                self.resize(required_total, max(self.height(), self.minimumHeight()))
+            total_splitter_w = self.splitter.size().width() or (self.width() - margins - handle)
+            half = max(1, total_splitter_w // 2)
+            self.splitter.setSizes([half, half])
+
+        QtCore.QTimer.singleShot(0, _expand_right_initially)
+
+    def _load_show_preset_label_checkbox_for(self, preset_name: str):
+        data = radialWidget._load_data()
+        flag = bool(data.get("presets", {}).get(preset_name, {}).get("show preset label", True))
+        blocker = QtCore.QSignalBlocker(self.show_preset_label_chk)
+        self.show_preset_label_chk.setChecked(flag)
+        del blocker
+
+    def _on_show_preset_label_toggled(self, checked: bool):
+        data = self._load_all()
+        name = self.preset_combo.currentText().strip()
+        if not name:
+            return
+        data.setdefault("presets", OrderedDict()).setdefault(name, OrderedDict())["show preset label"] = bool(checked)
+        self._save_all(data)
+        # live refresh the preview widget if it's around
+        try:
+            self.radial_widget._show_preset_label = bool(checked)
+            self.radial_widget.update()
+        except Exception:
+            pass
+
+    def _open_icon_picker(self):
+        dlg = IconPickerDialog(self)
+        if dlg.exec_() == QDialog.Accepted:
+            if dlg.was_cleared:
+                self._clear_icon_on_current()
+            else:
+                picked = dlg.selected_icon
+                if picked:
+                    self._apply_icon_to_current(picked)
+
+    def _apply_icon_to_current(self, picked):
+        # picked is a tuple: ("maya", "polySphere.png") OR ("file", "C:/.../icons/my.png")
+        kind, payload = picked
+
+        data = self._load_all()
+        preset = self._current(data)
+        inner = preset.setdefault("inner_section", OrderedDict())
+
+        target_label = (self.hiddenLabel.text().strip()
+                        if hasattr(self, "hiddenLabel") and self.hiddenLabel.text().strip()
+                        else self.label_lineEdit.text().strip())
+        if not target_label or target_label not in inner:
+            cmds.warning("Select an INNER slice first, then pick an icon.")
+            return
+
+        sec = inner.setdefault(target_label, OrderedDict())
+
+        # Clear both, then set the appropriate one
+        sec.pop("maya_icon", None)
+        sec.pop("icon", None)
+        if kind == "maya":
+            sec["maya_icon"] = payload  # painter will prefix :/ if missing
+        else:
+            # Store as absolute path; painter loads file paths directly
+            sec["icon"] = payload
+
+        self._save_all(data)
+        self._refresh_preview(data)
+
+    def _hex_from_qcolor(self, c: QtGui.QColor) -> str:
+        # Always store as #AARRGGBB
+        return "#{:02X}{:02X}{:02X}{:02X}".format(c.alpha(), c.red(), c.green(), c.blue())
+
+    def _set_color_widgets(self, key: str, hex_or_qcolor):
+        # Accept str or QColor
+        if isinstance(hex_or_qcolor, str):
+            qc = QtGui.QColor(hex_or_qcolor)
+            # If #AARRGGBB wasn't parsed, try interpreting as #RRGGBB and add alpha
+            if not qc.isValid() and re.match(r"^#?[0-9A-Fa-f]{6}$", hex_or_qcolor or ""):
+                qc = QtGui.QColor("#" + hex_or_qcolor.lstrip("#"))
+            if not qc.isValid():
+                return
+        else:
+            qc = hex_or_qcolor
+
+        # update swatch
+        self._color_btns[key].setStyleSheet(
+            "QPushButton{border:1px solid #444; background-color: rgba(%d,%d,%d,%d);}"
+            % (qc.red(), qc.green(), qc.blue(), qc.alpha())
+        )
+        # update hex field (always AARRGGBB)
+        self._color_edits[key].setText(self._hex_from_qcolor(qc))
+        self._save_colours()
+
+    def _open_color_dialog(self, key: str):
+        # Start from the current hex field value if valid, else default
+        start = self._color_edits[key].text().strip() or self._default_colours.get(key, "#FFFFFFFF")
+        qc = QtGui.QColor(start)
+        if not qc.isValid():
+            qc = QtGui.QColor(self._default_colours.get(key, "#FFFFFFFF"))
+
+        dlg = QtWidgets.QColorDialog(self)
+        dlg.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
+        dlg.setCurrentColor(qc)
+        if dlg.exec_():
+            self._set_color_widgets(key, dlg.currentColor())
+
+    def _on_hex_edit(self, key: str, line: QtWidgets.QLineEdit):
+        txt = line.text().strip()
+        qc = QtGui.QColor(txt)
+        if not qc.isValid():
+            # try #RRGGBB form
+            if re.match(r"^#?[0-9A-Fa-f]{6}$", txt):
+                qc = QtGui.QColor("#" + txt.lstrip("#"))
+        if qc.isValid():
+            self._set_color_widgets(key, qc)
+        else:
+            # revert to previous or default
+            self._set_color_widgets(key, self._default_colours[key])
+
+    def _clear_icon_on_current(self):
+        """Remove any stored icon (file or Maya resource) from the selected INNER section."""
+        # Load JSON
+        data = radialWidget._load_data()  # uses menuInfo_filePath next to this UI module
+        pname = self.preset_combo.currentText().strip()
+        preset = data.get("presets", {}).get(pname, OrderedDict())
+        inner = preset.setdefault("inner_section", OrderedDict())
+
+        # Which INNER section are we editing?
+        target_label = ""
+        if hasattr(self, "hiddenLabel") and self.hiddenLabel.text().strip():
+            target_label = self.hiddenLabel.text().strip()
+        elif hasattr(self, "label_lineEdit") and self.label_lineEdit.text().strip():
+            target_label = self.label_lineEdit.text().strip()
+
+        if not target_label or target_label not in inner:
+            try:
+                cmds.warning("Select an INNER slice first, then Clear Icon.")
+            except Exception:
+                pass
+            return
+
+        sec = inner[target_label]
+        # Clear both possible fields
+        sec.pop("icon", None)  # file path icon
+        sec.pop("maya_icon", None)  # Maya resource icon
+
+        # Save and refresh
+        radialWidget._save_data(data)
+
+        # Optional UI refresh (safe if method exists)
+        try:
+            self._refresh_preview(data)
+        except Exception:
+            pass
+
+    def _on_show_label_toggled(self, state: bool):
+        """Persist per-inner 'show_label' and live-refresh preview."""
+        data = self._load_all()
+        preset = self._current(data)
+        inner = preset.setdefault("inner_section", OrderedDict())
+
+        # Resolve currently selected INNER
+        target_label = (self.hiddenLabel.text().strip()
+                        if hasattr(self, "hiddenLabel") and self.hiddenLabel.text().strip()
+                        else self.label_lineEdit.text().strip())
+
+        if not target_label or target_label not in inner:
+            try:
+                cmds.warning("Select an INNER slice first, then toggle label display.")
+            except Exception:
+                pass
+            return
+
+        sec = inner.setdefault(target_label, OrderedDict())
+        sec["show_label"] = bool(state)
+
+        self._save_all(data)
+        self._refresh_preview(data)
 
     @QtCore.Slot(str)
     def _on_preset_previewed(self, name: str):
@@ -362,6 +851,7 @@ class buildRadialMenu_UI(QDialog):
 
         # Update colour controls for previewed preset
         self._load_colour_controls_for(name)
+        self._load_show_preset_label_checkbox_for(name)
         # 🔹 Clear any previously selected inner/child in the editor UI
         self._clear_editor_selection()
 
@@ -518,8 +1008,8 @@ class buildRadialMenu_UI(QDialog):
 
     def _del_preset(self):
         cur = self.preset_combo.currentText()
-        if cur == "Default":
-            cmds.warning("The 'Default' preset cannot be deleted.")
+        if cur in ["Default", "Modeling", "Rigging", "FX", "Animation"]:
+            cmds.warning("Smart presets cannot be deleted. Toggle active off to hide")
             return
         from TDS_library.TDS_radialMenu import radialWidget as rw
         if rw.delete_preset(cur):
@@ -542,6 +1032,7 @@ class buildRadialMenu_UI(QDialog):
         size["child_angle_multiplier"] = float(self.child_angle_mult_spin.value())
         size["inner_hole_radius"] = int(self.inner_hole_spin.value())
         size["text_scale"] = float(self.text_scale_spin.value())
+        size["icon_scale"] = float(self.icon_scale_spin.value())
 
         self._save_all(data)
         self._apply_size_to_preview(size)
@@ -555,6 +1046,7 @@ class buildRadialMenu_UI(QDialog):
         w.inner_hole = int(size.get("inner_hole_radius", max(0, int(w.radius * 0.35))))  # ← NEW
         w.outer_radius = w.radius + w.ring_gap + w.outer_ring_width
         w.text_scale = float(size.get("text_scale", 1.0))
+        w.icon_scale = float(size.get("icon_scale", 1.0))
         w.child_font.setPixelSize(int(11 * w.text_scale))
         if hasattr(w, "inner_font"):
             w.inner_font.setPixelSize(int(12 * w.text_scale))
@@ -615,19 +1107,17 @@ class buildRadialMenu_UI(QDialog):
         return "#{:02X}{:02X}{:02X}{:02X}".format(255, q.red(), q.green(), q.blue())
 
     def _save_colours(self):
-        """Persist colour buttons + outline thickness to JSON and live-apply."""
+        if getattr(self, "_loading_colours", False):
+            return
         data = radialWidget._load_data()
         name = self.preset_combo.currentText()
         preset = data["presets"][name]
         col = preset.setdefault("colour", OrderedDict())
 
-        # read hex from each button
-        for k, btn in self._colour_buttons.items():
-            col[k] = self._btn_hex(btn)
+        for k in self._colour_keys.keys():
+            col[k] = self._color_edits[k].text().strip() or self._default_colours[k]
 
-        # thickness
         col["child_outline_thickness"] = float(self.outline_thickness.value())
-
         radialWidget._save_data(data)
 
         # live apply to preview
@@ -687,7 +1177,8 @@ class buildRadialMenu_UI(QDialog):
             "description": label,
             "command": f"print('{label}')",
             "on_release": "",
-            "on_double": ""
+            "on_double": "",
+            "show_label": True,  # NEW default
         }
         preset["inner_section"] = inner
         self._save_all(data)
@@ -854,38 +1345,27 @@ class buildRadialMenu_UI(QDialog):
         data = radialWidget._load_data()
         if "presets" not in data or preset_name not in data["presets"]:
             return
-
         preset = data["presets"][preset_name]
         col = preset.setdefault("colour", OrderedDict())
 
-        defaults = {
-            "inner_colour": "#454545",
-            "innerHighlight_colour": "#282828",
-            "innerLine_colour": "#1E1E1E",
-            "child_colour": "#5285a6",
-            "childLine_colour": "#1E1E1E",
-            "child_text_color": "#FFFFFF",
-            "child_textOutline_color": "#000000",
-            "child_outline_thickness": 1,
-        }
-        for k, v in defaults.items():
+        # ensure defaults exist
+        for k, v in self._default_colours.items():
             col.setdefault(k, v)
 
-        # Update UI buttons
-        for k, btn in self._colour_buttons.items():
-            qcol = radialWidget._q(col.get(k, defaults[k]), defaults[k])
-            btn.setStyleSheet(
-                "background-color: rgba({}, {}, {}, {});".format(
-                    qcol.red(), qcol.green(), qcol.blue(), qcol.alpha()
-                )
-            )
+        # push values into the UI widgets
+        for k in self._colour_keys.keys():
+            self._set_color_widgets(k, col.get(k, self._default_colours[k]))
 
-        # Spinbox (block to avoid valueChanged recursion)
+        # thickness (block to avoid recursion into _save_colours twice)
         self.outline_thickness.blockSignals(True)
-        self.outline_thickness.setValue(float(col.get("child_outline_thickness", defaults["child_outline_thickness"])))
+        self.outline_slider.blockSignals(True)
+        self.outline_thickness.setValue(
+            float(col.get("child_outline_thickness", self._default_colours["child_outline_thickness"])))
+        self.outline_slider.setValue(int(round(self.outline_thickness.value() * 10)))
+        self.outline_slider.blockSignals(False)
         self.outline_thickness.blockSignals(False)
 
-        # Live-apply to preview widget too
+        # live-apply to preview
         try:
             self.radial_widget._apply_preset_colours(preset)
             self.radial_widget.update()
@@ -915,7 +1395,7 @@ class buildRadialMenu_UI(QDialog):
             self._load_colour_controls_for(name)
             self._refresh_active_controls(name)
             self._load_active_checkbox_for(name)
-
+            self._load_show_preset_label_checkbox_for(name)
 
             # Keep scroll-preview in sync and apply colours/sections immediately
             self.radial_widget._preview_name = name

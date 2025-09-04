@@ -1,13 +1,14 @@
 {
-    "active_preset": "Rigging",
+    "active_preset": "Default",
     "ui": {
         "size": {
             "radius": 130,
-            "ring_gap": 7,
+            "ring_gap": 5,
             "outer_ring_width": 25,
-            "child_angle_multiplier": 1.2,
+            "child_angle_multiplier": 1.3,
             "inner_hole_radius": 45,
-            "text_scale": 0.9999999999999983
+            "text_scale": 1.1999999999999997,
+            "icon_scale": 1.0
         },
         "smart_mode": "department"
     },
@@ -16,17 +17,17 @@
             "active": true,
             "colour": {
                 "inner_colour": "#96454545",
-                "innerHighlight_colour": "#96416E85",
+                "innerHighlight_colour": "#96282828",
                 "innerLine_colour": "#FF1E1E1E",
                 "child_colour": "#FF7ECEFF",
                 "childLine_colour": "#FF1E1E1E",
                 "child_text_color": "#FFFFFFFF",
                 "child_textOutline_color": "#FF000000",
-                "child_outline_thickness": 1.1999999999999997
+                "child_outline_thickness": 1.2
             },
             "inner_section": {
-                "Component Mode": {
-                    "description": "Component Mode",
+                "Component": {
+                    "description": "",
                     "command": "print('LMB single-click action')",
                     "on_release": "print('RMB release action')",
                     "on_double": "print('LMB double-click action')",
@@ -47,10 +48,12 @@
                             "description": "Set Component Selection to Object",
                             "command": "cmds.selectMode(object=True)"
                         }
-                    }
+                    },
+                    "show_label": false,
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\alignSelection.png"
                 },
                 "Windows": {
-                    "description": "Windows",
+                    "description": "",
                     "command": "",
                     "children": {
                         "Node Editor": {
@@ -61,14 +64,20 @@
                             "description": "",
                             "command": ""
                         },
-                        "Set Driven Key": {
-                            "description": "",
-                            "command": ""
+                        "SDK": {
+                            "description": "Set Driven Key",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\window.png",
+                    "show_label": false,
+                    "on_release": "",
+                    "on_double": ""
                 },
                 "Create": {
-                    "description": "Create",
+                    "description": "",
                     "command": "",
                     "children": {
                         "Plane": {
@@ -95,10 +104,14 @@
                             "description": "Sphere",
                             "command": "cmds.polySphere()"
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\paintbrush2.png",
+                    "show_label": false,
+                    "on_release": "",
+                    "on_double": ""
                 },
                 "Select": {
-                    "description": "Select",
+                    "description": "",
                     "command": "",
                     "children": {
                         "Isolate": {
@@ -114,16 +127,23 @@
                             "command": "cmds.select(cl=True)"
                         },
                         "Sel Hierarchy": {
-                            "description": "new_child",
-                            "command": "print('new_child')"
+                            "description": "Selects all children",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
                         },
                         "Select All": {
                             "description": "",
                             "command": "all = cmds.ls()\ncmds.select(all)"
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\selectAll.png",
+                    "show_label": false,
+                    "on_release": "",
+                    "on_double": ""
                 }
-            }
+            },
+            "show preset label": true
         },
         "Rigging": {
             "active": true,
@@ -133,13 +153,13 @@
                 "innerLine_colour": "#FF1E1E1E",
                 "child_colour": "#FF2ECC71",
                 "childLine_colour": "#FF1E1E1E",
-                "child_text_color": "#FFFFFF",
-                "child_textOutline_color": "#000000",
-                "child_outline_thickness": 1.1999999999999997
+                "child_text_color": "#FFFFFFFF",
+                "child_textOutline_color": "#FF000000",
+                "child_outline_thickness": 1.2
             },
             "inner_section": {
-                "Component Mode": {
-                    "description": "Component Mode",
+                "Component": {
+                    "description": "",
                     "command": "",
                     "on_release": "print('RMB release action')",
                     "on_double": "print('LMB double-click action')",
@@ -160,39 +180,122 @@
                             "description": "Set Component Selection to Object",
                             "command": "cmds.selectMode(object=True)"
                         }
-                    }
+                    },
+                    "show_label": false,
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\alignSelection.png"
                 },
                 "Deform": {
                     "description": "",
-                    "command": ""
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\warpSqueeze.png",
+                    "show_label": false,
+                    "children": {
+                        "Cluster": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Blendshape": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Lattice": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
                 },
                 "Skeleton": {
                     "description": "",
                     "command": "",
                     "children": {
-                        "Add": {
+                        "Create": {
                             "description": "",
-                            "command": ""
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
                         },
-                        "Insert": {
+                        "Orient": {
                             "description": "",
-                            "command": ""
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
                         },
-                        "Remove": {
+                        "Mirror": {
                             "description": "",
-                            "command": ""
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\skull.png",
+                    "show_label": false
                 },
                 "Constriants": {
                     "description": "",
-                    "command": ""
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\hierarchy1.png",
+                    "show_label": false,
+                    "children": {
+                        "Parent": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Point": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Orient": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Aim": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
                 },
                 "Skin": {
                     "description": "",
-                    "command": ""
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\paintbrush2.png",
+                    "show_label": false,
+                    "children": {
+                        "Bind Skin": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Paint": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Mirror": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
                 }
-            }
+            },
+            "show preset label": true
         },
         "Animation": {
             "active": true,
@@ -204,14 +307,15 @@
                 "childLine_colour": "#FF1E1E1E",
                 "child_text_color": "#FFFFFFFF",
                 "child_textOutline_color": "#FF000000",
-                "child_outline_thickness": 1.2000000000000002
+                "child_outline_thickness": 1.2
             },
             "inner_section": {
-                "Component Mode": {
-                    "description": "Component Mode",
+                "Component": {
+                    "description": "",
                     "command": "",
                     "on_release": "print('RMB release action')",
                     "on_double": "print('LMB double-click action')",
+                    "show_label": false,
                     "children": {
                         "Edge": {
                             "description": "Set Component Selection to Edges",
@@ -229,25 +333,99 @@
                             "description": "Set Component Selection to Object",
                             "command": "cmds.selectMode(object=True)"
                         }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\alignSelection.png"
+                },
+                "Key": {
+                    "description": "",
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\loadingHorizontal.png",
+                    "show_label": false,
+                    "children": {
+                        "Set": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "SDK": {
+                            "description": "Set Driven Key",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Bake": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        }
                     }
                 },
                 "Playback": {
                     "description": "",
-                    "command": ""
-                },
-                "Vizualize": {
-                    "description": "",
-                    "command": ""
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\cogPlay.png",
+                    "show_label": false,
+                    "children": {
+                        "Playblast": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Range": {
+                            "description": "",
+                            "command": "",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
                 },
                 "Audio": {
                     "description": "",
-                    "command": ""
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\volumeUp.png",
+                    "show_label": false,
+                    "children": {
+                        "Add": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Mute": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
                 },
-                "Key": {
+                "Import/Export": {
                     "description": "",
-                    "command": ""
+                    "command": "print('new_section')",
+                    "on_release": "",
+                    "on_double": "",
+                    "show_label": false,
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\downloadBox.png",
+                    "children": {
+                        "Import": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Reference": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
                 }
-            }
+            },
+            "show preset label": true
         },
         "FX": {
             "active": true,
@@ -259,11 +437,11 @@
                 "childLine_colour": "#FF1E1E1E",
                 "child_text_color": "#FFFFFFFF",
                 "child_textOutline_color": "#FF000000",
-                "child_outline_thickness": 1.2000000000000002
+                "child_outline_thickness": 1.2
             },
             "inner_section": {
-                "Component Mode": {
-                    "description": "Component Mode",
+                "Component": {
+                    "description": "",
                     "command": "",
                     "on_release": "print('RMB release action')",
                     "on_double": "print('LMB double-click action')",
@@ -284,39 +462,98 @@
                             "description": "Set Component Selection to Object",
                             "command": "cmds.selectMode(object=True)"
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\alignSelection.png",
+                    "show_label": false
                 },
                 "nCloth": {
                     "description": "",
                     "command": "",
                     "children": {
-                        "new_child": {
-                            "description": "new_child",
-                            "command": "print('new_child')"
+                        "Passive": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Create": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Remove": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\wrapArch.png",
+                    "show_label": false
                 },
                 "nHair": {
                     "description": "",
-                    "command": ""
-                },
-                "nConstraint": {
-                    "description": "",
-                    "command": ""
-                },
-                "nParticles": {
-                    "description": "",
                     "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\userFace.png",
+                    "show_label": false,
                     "children": {
-                        "Fred": {
-                            "description": "new_child",
+                        "Create": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Assign": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Dyn Curve": {
+                            "description": "Dynamic Curve",
                             "command": "print('new_child')",
                             "on_release": "",
                             "on_double": ""
                         }
                     }
+                },
+                "nConstraint": {
+                    "description": "",
+                    "command": "",
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\hierarchy1.png",
+                    "show_label": false,
+                    "children": {
+                        "Component": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    }
+                },
+                "nParticles": {
+                    "description": "",
+                    "command": "",
+                    "children": {
+                        "Soft Body": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        },
+                        "Emitter": {
+                            "description": "",
+                            "command": "print('new_child')",
+                            "on_release": "",
+                            "on_double": ""
+                        }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\multipleStars.png",
+                    "show_label": false
                 }
-            }
+            },
+            "show preset label": true
         },
         "Modeling": {
             "active": true,
@@ -328,11 +565,11 @@
                 "childLine_colour": "#FF1E1E1E",
                 "child_text_color": "#FFFFFFFF",
                 "child_textOutline_color": "#FF000000",
-                "child_outline_thickness": 1.2000000000000002
+                "child_outline_thickness": 1.2
             },
             "inner_section": {
-                "Component Mode": {
-                    "description": "Component Mode",
+                "Component": {
+                    "description": "",
                     "command": "",
                     "on_release": "print('RMB release action')",
                     "on_double": "print('LMB double-click action')",
@@ -353,7 +590,9 @@
                             "description": "Set Component Selection to Object",
                             "command": "cmds.selectMode(object=True)"
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\alignSelection.png",
+                    "show_label": false
                 },
                 "Mesh Tools": {
                     "description": "",
@@ -365,7 +604,9 @@
                             "on_release": "",
                             "on_double": ""
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\wrenchCircle.png",
+                    "show_label": false
                 },
                 "Edit Mesh": {
                     "description": "",
@@ -389,7 +630,9 @@
                             "on_release": "",
                             "on_double": ""
                         }
-                    }
+                    },
+                    "show_label": false,
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\pageSetting.png"
                 },
                 "Mesh": {
                     "description": "",
@@ -419,7 +662,9 @@
                             "on_release": "",
                             "on_double": ""
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\circleSquareShape.png",
+                    "show_label": false
                 },
                 "Mesh Display": {
                     "description": "",
@@ -455,9 +700,12 @@
                             "on_release": "",
                             "on_double": ""
                         }
-                    }
+                    },
+                    "icon": "C:\\Users\\tiges\\Documents\\maya\\scripts\\TDS_library\\TDS_radialMenu\\icons\\irisScan.png",
+                    "show_label": false
                 }
-            }
+            },
+            "show preset label": true
         }
     }
 }

@@ -67,6 +67,7 @@ def _load_data():
     size.setdefault("child_angle_multiplier", 1.0)
     size.setdefault("inner_hole_radius", max(0, int(size.get("radius", 150) * 0.35)))
     size.setdefault("text_scale", 1.0)
+    size.setdefault("icon_scale", 1.0)
 
     # BACKFILL: make sure every preset has a colour block
     changed = False
@@ -75,8 +76,11 @@ def _load_data():
         if "colour" not in preset:
             preset["colour"] = OrderedDict(default_colour)
             changed = True
-        # also ensure inner_section exists
         preset.setdefault("inner_section", OrderedDict())
+        # NEW: default to showing the preset name in the hole
+        if "show preset label" not in preset:
+            preset["show preset label"] = True
+            changed = True
 
     if changed:
         _save_data(data)
@@ -88,14 +92,14 @@ def _default_colour_from_data(d):
 
     # hardcoded fallback (keep in sync with your runtime defaults)
     return OrderedDict([
-        ("inner_colour", "#454545"),
-        ("innerHighlight_colour", "#282828"),
-        ("innerLine_colour", "#1E1E1E"),
-        ("child_colour", "#5285a6"),      # or "#0018d1" if you prefer your JSON default
-        ("childLine_colour", "#1E1E1E"),
-        ("child_text_color", "#FFFFFF"),
-        ("child_textOutline_color", "#000000"),
-        ("child_outline_thickness", 1),
+        ("inner_colour", "#96454545"),
+        ("innerHighlight_colour", "#96282828"),
+        ("innerLine_colour", "#FF1E1E1E"),
+        ("child_colour", "#FF7ECEFF"),      # or "#0018d1" if you prefer your JSON default
+        ("childLine_colour", "#FF1E1E1E"),
+        ("child_text_color", "#FFFFFFFF"),
+        ("child_textOutline_color", "#FF000000"),
+        ("child_outline_thickness", 1.2),
     ])
 
 
@@ -516,7 +520,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None, label_lineEdit=None, hiddenLabel=None,
                  pos_dropdown=None, scriptEditor=None, hiddenType=None, hiddenParent=None,
-                 descEditor=None, releaseEditor=None, doubleEditor=None):
+                 descEditor=None, releaseEditor=None, doubleEditor=None, label_check=None):
         super().__init__(parent)
         self._pad = 8
         self.label_lineEdit = label_lineEdit
@@ -528,6 +532,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.hiddenType = hiddenType
         self.hiddenParent = hiddenParent
         self.descEditor = descEditor
+        self.label_check = label_check
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.setMinimumSize(1, 1)  # keep Maya happy but allow shrinking
         self.setMouseTracking(True)
@@ -548,6 +553,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         # --- load data first (gets global size too) ---
         data = _load_data()
         preset = _active_preset(data)
+        self._show_preset_label = bool(preset.get("show preset label", True))
         colour_data = preset.get("colour", {})
 
         child_text_fill_hex = colour_data.get("child_text_color", colour_data.get("child_fill_color", "#FFFFFF"))
@@ -572,6 +578,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.outer_radius = self.radius + self.ring_gap + self.outer_ring_width
         self.inner_hole = int(size_data.get("inner_hole_radius", max(0, int(self.radius * 0.35))))
         self.text_scale = float(size_data.get("text_scale", 1.0))  # <-- now defined before font use
+        self.icon_scale = float(size_data.get("icon_scale", self.text_scale))  # NEW
 
         # fonts AFTER text_scale exists
         self.child_font = QtGui.QFont("Arial")
@@ -607,6 +614,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.inner_sections = preset_data.get("inner_section", OrderedDict())
         self.inner_order = list(self.inner_sections.keys())
         self.inner_angles = self.calculate_angles(self.inner_order)
+        self._show_preset_label = bool(preset_data.get("show preset label", True))
 
         # 🔹 important: fully clear any prior selection/hover/lock state
         self._clear_selection_state()
@@ -705,14 +713,22 @@ class RadialMenuWidget(QtWidgets.QWidget):
             # Inside the hole? clear selection & editors
             if dist < hole:
                 self._clear_selection_state()
-                if self.hiddenLabel:  self.hiddenLabel.setText("")
-                if self.hiddenType:   self.hiddenType.setText("")
-                if self.hiddenParent: self.hiddenParent.setText("")
-                if self.label_lineEdit: self.label_lineEdit.clear()
-                if self.scriptEditor:    self.scriptEditor.clear()
-                if self.releaseEditor:   self.releaseEditor.clear()
-                if self.doubleEditor:    self.doubleEditor.clear()
-                if getattr(self, "descEditor", None): self.descEditor.clear()
+                if self.hiddenLabel:
+                    self.hiddenLabel.setText("")
+                if self.hiddenType:
+                    self.hiddenType.setText("")
+                if self.hiddenParent:
+                    self.hiddenParent.setText("")
+                if self.label_lineEdit:
+                    self.label_lineEdit.clear()
+                if self.scriptEditor:
+                    self.scriptEditor.clear()
+                if self.releaseEditor:
+                    self.releaseEditor.clear()
+                if self.doubleEditor:
+                    self.doubleEditor.clear()
+                if getattr(self, "descEditor", None):
+                    self.descEditor.clear()
                 self.update()
                 return
 
@@ -908,11 +924,16 @@ class RadialMenuWidget(QtWidgets.QWidget):
         self.outer_active_sector = None
         self.update()
 
-        if self.hiddenType:   self.hiddenType.setText("inner")
-        if self.hiddenParent: self.hiddenParent.setText("")
-        if self.hiddenLabel:  self.hiddenLabel.setText(new_label)
-        if self.label_lineEdit: self.label_lineEdit.setText(new_label)
-        if self.scriptEditor:   self.scriptEditor.setPlainText(self.inner_sections[new_label].get("command", ""))
+        if self.hiddenType:
+            self.hiddenType.setText("inner")
+        if self.hiddenParent:
+            self.hiddenParent.setText("")
+        if self.hiddenLabel:
+            self.hiddenLabel.setText(new_label)
+        if self.label_lineEdit:
+            self.label_lineEdit.setText(new_label)
+        if self.scriptEditor:
+            self.scriptEditor.setPlainText(self.inner_sections[new_label].get("command", ""))
         if getattr(self, "releaseEditor", None):
             self.releaseEditor.setPlainText(self.inner_sections[new_label].get("on_release", ""))
         if getattr(self, "doubleEditor", None):
@@ -978,7 +999,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
             return
 
 
-        data, preset, _ = self._get_preset_for_write()
+        data, preset, pname = self._get_preset_for_write()
         inner = preset.get("inner_section", OrderedDict())
 
         parent = inner.get(parent_label)
@@ -1009,7 +1030,8 @@ class RadialMenuWidget(QtWidgets.QWidget):
 
         _save_data(data)
         data = _load_data()
-        self.inner_sections = data["presets"][self._preview_name].get("inner_section", OrderedDict())
+        preset = data["presets"].get(pname, OrderedDict())
+        self.inner_sections = preset.get("inner_section", OrderedDict())
         self.inner_order = list(self.inner_sections.keys())
         self.inner_angles = self.calculate_angles(self.inner_order)
 
@@ -1199,6 +1221,11 @@ class RadialMenuWidget(QtWidgets.QWidget):
                         if self.doubleEditor:
                             self.doubleEditor.clear()
                         if getattr(self, "descEditor", None): self.descEditor.clear()
+                        if self.label_check:
+                            self.label_check.blockSignals(True)
+                            self.label_check.setEnabled(False)
+                            self.label_check.setChecked(False)
+                            self.label_check.blockSignals(False)
 
                         self.update()
                         return
@@ -1228,6 +1255,11 @@ class RadialMenuWidget(QtWidgets.QWidget):
                             self.doubleEditor.setPlainText(sec.get("on_double", ""))
                         if getattr(self, "descEditor", None):
                             self.descEditor.setText(sec.get("description", ""))
+                        if self.label_check:
+                            self.label_check.blockSignals(True)
+                            self.label_check.setEnabled(True)
+                            self.label_check.setChecked(bool(sec.get("show_label", True)))
+                            self.label_check.blockSignals(False)
 
                         self.update()
                         return
@@ -1257,6 +1289,11 @@ class RadialMenuWidget(QtWidgets.QWidget):
                         if self.doubleEditor:
                             self.doubleEditor.clear()
                         if getattr(self, "descEditor", None): self.descEditor.clear()
+                        if self.label_check:
+                            self.label_check.blockSignals(True)
+                            self.label_check.setEnabled(False)
+                            self.label_check.setChecked(False)
+                            self.label_check.blockSignals(False)
 
                         # drop any sticky/hover state so hovering behaves normally
                         self._clear_selection_state()
@@ -1283,6 +1320,11 @@ class RadialMenuWidget(QtWidgets.QWidget):
                         if self.doubleEditor:
                             self.doubleEditor.setPlainText(sec.get("on_double", ""))
                         if getattr(self, "descEditor", None): self.descEditor.setText(sec.get("description", ""))
+                        if self.label_check:
+                            self.label_check.blockSignals(True)
+                            self.label_check.setEnabled(False)
+                            self.label_check.setChecked(True)
+                            self.label_check.blockSignals(False)
 
                         # ensure parent remains locked & children visible
                         self._sticky_parent = parent_label or self._sticky_parent
@@ -1311,6 +1353,11 @@ class RadialMenuWidget(QtWidgets.QWidget):
             if self.doubleEditor:
                 self.doubleEditor.clear()
             if getattr(self, "descEditor", None): self.descEditor.clear()
+            if self.label_check:
+                self.label_check.blockSignals(True)
+                self.label_check.setEnabled(False)
+                self.label_check.setChecked(False)
+                self.label_check.blockSignals(False)
             self.update()
             return
 
@@ -1447,7 +1494,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
         outer_outer_radius = self.outer_radius  # already derived from display_radius in _recalc_display_metrics
 
         # Hysteresis buffer so children don't flicker at the edges
-        HYST = max(12, int(self.outer_ring_width * 0.6))
+        HYST = max(12, int(self.outer_ring_width * 1.5))
         ring_inner_with_hyst = max(hole, outer_inner_radius - HYST)
         ring_outer_with_hyst = outer_outer_radius + HYST
 
@@ -1460,7 +1507,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
             self.hovered_child_angles = self.get_child_angles() if self.hovered_children else {}
 
             if self.hovered_children:
-                if outer_inner_radius <= distance <= outer_outer_radius:
+                if outer_inner_radius <= distance <= outer_outer_radius+HYST:
                     # inside the child ring: follow hover
                     self.outer_active_sector = self.get_outer_sector_from_angle(angle, self.hovered_child_angles)
                 else:
@@ -1493,7 +1540,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
             # Keep current inner highlighted while near the ring
             if self.active_sector is None and sector_at_angle:
                 self.active_sector = sector_at_angle
-            if outer_inner_radius <= distance <= outer_outer_radius:
+            if outer_inner_radius <= distance <= outer_outer_radius+HYST:
                 self.outer_active_sector = self.get_outer_sector_from_angle(angle, self.hovered_child_angles)
             else:
                 self.outer_active_sector = None
@@ -1545,13 +1592,52 @@ class RadialMenuWidget(QtWidgets.QWidget):
             # label at mid radius of the ring
             mid_r = (hole + r) * 0.5
             ang_rad = math.radians(angle)
-            lp = QtCore.QPointF(center.x() + math.cos(ang_rad) * mid_r,
-                                center.y() + math.sin(ang_rad) * mid_r)
-            text = label
-            painter.setFont(self.inner_font)
-            tw = painter.fontMetrics().horizontalAdvance(text)
-            painter.setPen(QtGui.QColor(255, 255, 255))
-            painter.drawText(lp.x() - tw / 2, lp.y() + 5, text)
+            label_pos = QtCore.QPointF(center.x() + math.cos(ang_rad) * mid_r,
+                                       center.y() + math.sin(ang_rad) * mid_r)
+            # --- inside the loop over inner angles in paintEvent(), after computing label_pos ---
+            info = self.inner_sections.get(label, {}) if hasattr(self, "inner_sections") else {}
+            icon_spec = info.get("icon") or info.get("maya_icon")
+            pm = None
+            if icon_spec:
+                if "maya_icon" in info and not icon_spec.startswith(":/"):
+                    icon_spec = f":/{icon_spec}"
+                pm = QtGui.QPixmap(icon_spec)
+                if pm.isNull():
+                    pm = None
+
+            # NEW: check per-section flag (default True)
+            want_text = bool(info.get("show_label", True))
+            text = label  # you could switch to info.get("custom_label", label) later if desired
+
+            # Draw icon (if any)
+            drawn_icon_height = 0
+            if pm:
+                band_h = (r - hole) * 0.6  # use display-scaled r/hole in the preview; raw in popup
+                size = int(max(12, band_h * getattr(self, "icon_scale",
+                                                    getattr(self, "text_scale", 1.0))))
+                if size > 0:
+                    pm_scaled = pm.scaled(size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+                    painter.drawPixmap(
+                        int(label_pos.x() - pm_scaled.width() / 2),
+                        int(label_pos.y() - pm_scaled.height() / 2),
+                        pm_scaled
+                    )
+                    drawn_icon_height = pm_scaled.height()
+
+            # Draw label either under the icon or centered if no icon
+            if want_text:
+                painter.setFont(self.inner_font)
+                painter.setPen(QtGui.QColor(255, 255, 255))
+                fm = painter.fontMetrics()
+                tw = fm.horizontalAdvance(text)
+
+                if pm:
+                    # place text just *under* the icon within the band, with a small gap
+                    gap = max(2, int(2 * self.text_scale))
+                    y = label_pos.y() + drawn_icon_height / 2.5 + fm.ascent() + gap
+                    painter.drawText(label_pos.x() - tw / 2, y, text)
+                else:
+                    painter.drawText(label_pos.x() - tw / 2, label_pos.y() + 5, text)
 
         if self.hovered_children:
             outer_r = self.outer_radius  # already based on display_radius
@@ -1632,9 +1718,17 @@ class RadialMenuWidget(QtWidgets.QWidget):
                 label_y = center.y() + label_radius * math.sin(angle_rad)
                 self._draw_child_label(painter, label_x, label_y, label_radius, angle_deg, label, sweep_deg=step)
 
-        name = getattr(self, "_preview_name", None) or get_active_preset()
-        if name:
-            self._draw_hole_top_caption(painter, center, hole, name)
+        if getattr(self, "_show_preset_label", True):
+            name = getattr(self, "_preview_name", None) or get_active_preset()
+            if name:
+                self._draw_hole_top_caption(painter, center, hole, name)
+
+        #if self.outer_active_sector and self.active_sector:
+        #    label_for_center = f"{self.active_sector}\n{self.outer_active_sector}"
+        #else:
+        label_for_center = self.active_sector
+        if label_for_center:
+            self._draw_hole_center_caption(painter, center, hole, label_for_center)
 
         desc = ""
         child_key = None
@@ -1652,7 +1746,7 @@ class RadialMenuWidget(QtWidgets.QWidget):
 
         if desc:
             font = QtGui.QFont("Arial")
-            font.setPixelSize(int(10 * self.text_scale))
+            font.setPixelSize(int(12 * self.text_scale))
             painter.setFont(font)
             painter.setPen(QtGui.QColor(220, 220, 220))
             fm = painter.fontMetrics()
@@ -1666,6 +1760,70 @@ class RadialMenuWidget(QtWidgets.QWidget):
             y = min(self.height() - 4, y)
 
             painter.drawText(center.x() - text_width / 2, y, desc)
+
+    def _draw_hole_center_caption(self, painter, center, hole_radius, text):
+        """Draw big, centered (possibly multi-line) text in the hole; scales to fit."""
+        if not text or hole_radius <= 0:
+            return
+
+        painter.save()
+        lines = [ln for ln in text.splitlines() if ln]  # handle \n
+        if not lines:
+            painter.restore();
+            return
+
+        pad = max(4, int(hole_radius * 0.15))
+        ts = float(getattr(self, "text_scale", 1.0))
+
+        font = QtGui.QFont("Arial")
+        font.setBold(True)
+
+        # Find a size that fits width & height
+        px = int(hole_radius * 0.50)
+        while px >= 8:
+            font.setPixelSize(int(px * ts))
+            fm = QtGui.QFontMetricsF(font)
+            max_w = max(fm.horizontalAdvance(ln) for ln in lines)
+            line_h = fm.height()
+            gap = max(2.0, line_h * 0.15)
+            total_h = line_h * len(lines) + gap * (len(lines) - 1)
+
+            if max_w <= (hole_radius * 2 - 2 * pad) and total_h <= (hole_radius * 2 - 2 * pad):
+                break
+            px -= 1
+
+        # Build a centered path block
+        fm = QtGui.QFontMetricsF(font)  # ensure fm matches final px
+        max_w = max(fm.horizontalAdvance(ln) for ln in lines)
+        line_h = fm.height()
+        gap = max(2.0, line_h * 0.15)
+        total_h = line_h * len(lines) + gap * (len(lines) - 1)
+
+        x0 = center.x() - max_w / 2.0
+        y0 = center.y() - total_h / 2.0
+
+        path = QtGui.QPainterPath()
+        y = y0
+        for ln in lines:
+            w = fm.horizontalAdvance(ln)
+            x = x0 + (max_w - w) / 2.0
+            path.addText(x, y + fm.ascent(), font, ln)
+            y += line_h + gap
+
+        # Outline + fill like child labels
+        t = float(getattr(self, "child_outline_thickness", 1.6))
+        oc = getattr(self, "child_outline_color", QtGui.QColor(20, 20, 20, 220))
+        fc = getattr(self, "child_fill_color", QtGui.QColor(255, 255, 255))
+
+        if t > 0.0:
+            stroker = QtGui.QPainterPathStroker()
+            stroker.setWidth(t * 2.0)
+            stroker.setJoinStyle(QtCore.Qt.RoundJoin)
+            stroker.setCapStyle(QtCore.Qt.RoundCap)
+            painter.fillPath(stroker.createStroke(path), oc)
+
+        painter.fillPath(path, fc)
+        painter.restore()
 
     def _draw_hole_top_caption(self, painter, center, hole_radius, text):
         """Draw text inside the hole, hugged to the top arc, scaled to fit the chord there."""
@@ -1894,6 +2052,18 @@ class RadialMenuWidget(QtWidgets.QWidget):
         if self.descEditor:  # << NEW
             self.descEditor.setText(info.get("description", ""))
 
+        # NEW: reflect per-section label flag (only meaningful for INNER)
+        if self.label_check:
+            self.label_check.blockSignals(True)
+            if sel_type == "inner":
+                self.label_check.setEnabled(True)
+                self.label_check.setChecked(bool(info.get("show_label", True)))
+            else:
+                # childs currently don't have icons; disable to avoid confusion
+                self.label_check.setEnabled(False)
+                self.label_check.setChecked(False)
+            self.label_check.blockSignals(False)
+
         # <-- these two lines are the key for Save() -->
         if self.hiddenType:
             self.hiddenType.setText(sel_type)  # "inner" or "child"
@@ -1938,6 +2108,7 @@ class RadialMenu(QtWidgets.QWidget):
         data = _load_data()
 
         preset = _active_preset(data)
+        self._show_preset_label = bool(preset.get("show preset label", True))
         colour_data = preset.get("colour", {})  # <- per-preset colours
 
         # accept either the old or new keys for text colors
@@ -1965,6 +2136,7 @@ class RadialMenu(QtWidgets.QWidget):
         self.outer_radius = self.radius + self.ring_gap + self.outer_ring_width
         self.inner_hole = int(size_data.get("inner_hole_radius", max(0, int(self.radius * 0.35))))
         self.text_scale = float(size_data.get("text_scale", 1.0))
+        self.icon_scale = float(size_data.get("icon_scale", self.text_scale))  # NEW
 
         self.child_font = QtGui.QFont("Arial")
         self.child_font.setPixelSize(int(11 * self.text_scale))
@@ -2134,6 +2306,7 @@ class RadialMenu(QtWidgets.QWidget):
         self.inner_order = list(self.inner_sections.keys())
         self.inner_angles = self.calculate_angles(self.inner_order)
         self._apply_preset_colours(rw._active_preset(data))
+        self._show_preset_label = bool(rw._active_preset(data).get("show preset label", True))
 
         # >>> (2) NEW: immediately recompute hover under current cursor
         self._refresh_hover_from_cursor()
@@ -2185,7 +2358,7 @@ class RadialMenu(QtWidgets.QWidget):
         outer_outer_radius = self.outer_radius
 
         # --- add hysteresis so children don't vanish just outside the ring ---
-        HYST = max(12, int(self.outer_ring_width * 0.6))  # feel free to tune
+        HYST = max(12, int(self.outer_ring_width * 1.5))  # feel free to tune
         ring_inner_with_hyst = max(inner_hole, outer_inner_radius - HYST)
         ring_outer_with_hyst = outer_outer_radius + HYST
 
@@ -2223,7 +2396,7 @@ class RadialMenu(QtWidgets.QWidget):
         #    Keep parent anchored; only highlight a child when actually inside the true ring band.
         if (ring_inner_with_hyst <= distance <= ring_outer_with_hyst) and self.hovered_children and self._parent_anchor:
             self.active_sector = self._parent_anchor  # don’t let the parent flicker
-            if outer_inner_radius <= distance <= outer_outer_radius:
+            if outer_inner_radius <= distance <= outer_outer_radius+HYST:
                 # inside the real child ring: resolve child under cursor
                 self.outer_active_sector = self.get_outer_sector_from_angle(angle, self.hovered_child_angles)
             else:
@@ -2329,11 +2502,49 @@ class RadialMenu(QtWidgets.QWidget):
             label_pos = QtCore.QPointF(center.x() + math.cos(angle_rad) * mid_r,
                                        center.y() + math.sin(angle_rad) * mid_r)
 
-            text = label
-            painter.setFont(self.inner_font)
-            tw = painter.fontMetrics().horizontalAdvance(text)
-            painter.setPen(QtGui.QColor(255, 255, 255))
-            painter.drawText(label_pos.x() - tw / 2, label_pos.y() + 5, text)
+            # --- inside the loop over inner angles in paintEvent(), after computing label_pos ---
+            info = self.inner_sections.get(label, {}) if hasattr(self, "inner_sections") else {}
+            icon_spec = info.get("icon") or info.get("maya_icon")
+            pm = None
+            if icon_spec:
+                if "maya_icon" in info and not icon_spec.startswith(":/"):
+                    icon_spec = f":/{icon_spec}"
+                pm = QtGui.QPixmap(icon_spec)
+                if pm.isNull():
+                    pm = None
+
+            # NEW: check per-section flag (default True)
+            want_text = bool(info.get("show_label", True))
+            text = label  # you could switch to info.get("custom_label", label) later if desired
+
+            # Draw icon (if any)
+            drawn_icon_height = 0
+            if pm:
+                band_h = (r - hole) * 0.6  # use display-scaled r/hole in the preview; raw in popup
+                size = int(max(12, band_h * getattr(self, "icon_scale",
+                                                    getattr(self, "text_scale", 1.0))))
+                if size > 0:
+                    pm_scaled = pm.scaled(size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+                    painter.drawPixmap(
+                        int(label_pos.x() - pm_scaled.width() / 2),
+                        int(label_pos.y() - pm_scaled.height() / 2),
+                        pm_scaled
+                    )
+                    drawn_icon_height = pm_scaled.height()
+
+            # Draw label either under the icon or centered if no icon
+            if want_text:
+                painter.setFont(self.inner_font)
+                painter.setPen(QtGui.QColor(255, 255, 255))
+                fm = painter.fontMetrics()
+                tw = fm.horizontalAdvance(text)
+
+                if pm:
+                    gap = max(2, int(2 * self.text_scale))
+                    y = label_pos.y() + drawn_icon_height / 2.5 + fm.ascent() + gap
+                    painter.drawText(label_pos.x() - tw / 2, y, text)
+                else:
+                    painter.drawText(label_pos.x() - tw / 2, label_pos.y() + 5, text)
 
         if self.hovered_children:
             outer_r = self.outer_radius  # already based on display_radius
@@ -2414,9 +2625,17 @@ class RadialMenu(QtWidgets.QWidget):
                 label_y = center.y() + label_radius * math.sin(angle_rad)
                 self._draw_child_label(painter, label_x, label_y, label_radius, angle_deg, label, sweep_deg=step)
 
-        name = get_active_preset()
-        if name:
-            self._draw_hole_top_caption(painter, center, self.inner_hole, name)
+        if getattr(self, "_show_preset_label", True):
+            name = get_active_preset()
+            if name:
+                self._draw_hole_top_caption(painter, center, self.inner_hole, name)
+
+        #if self.outer_active_sector and self.active_sector:
+        #    label_for_center = f"{self.active_sector}\n{self.outer_active_sector}"
+        #else:
+        label_for_center = self.active_sector
+        if label_for_center:
+            self._draw_hole_center_caption(painter, center, self.inner_hole, label_for_center)
 
         desc = ""
         if self.outer_active_sector:
@@ -2435,7 +2654,7 @@ class RadialMenu(QtWidgets.QWidget):
 
         if desc:
             font = QtGui.QFont("Arial")
-            font.setPixelSize(int(10 * self.text_scale))
+            font.setPixelSize(int(12 * self.text_scale))
             painter.setFont(font)
             painter.setPen(QtGui.QColor(220, 220, 220))
             fm = painter.fontMetrics()
@@ -2449,6 +2668,70 @@ class RadialMenu(QtWidgets.QWidget):
             y = min(self.height() - 4, y)
 
             painter.drawText(center.x() - text_width / 2, y, desc)
+
+    def _draw_hole_center_caption(self, painter, center, hole_radius, text):
+        """Draw big, centered (possibly multi-line) text in the hole; scales to fit."""
+        if not text or hole_radius <= 0:
+            return
+
+        painter.save()
+        lines = [ln for ln in text.splitlines() if ln]  # handle \n
+        if not lines:
+            painter.restore();
+            return
+
+        pad = max(4, int(hole_radius * 0.15))
+        ts = float(getattr(self, "text_scale", 1.0))
+
+        font = QtGui.QFont("Arial")
+        font.setBold(True)
+
+        # Find a size that fits width & height
+        px = int(hole_radius * 0.50)
+        while px >= 8:
+            font.setPixelSize(int(px * ts))
+            fm = QtGui.QFontMetricsF(font)
+            max_w = max(fm.horizontalAdvance(ln) for ln in lines)
+            line_h = fm.height()
+            gap = max(2.0, line_h * 0.15)
+            total_h = line_h * len(lines) + gap * (len(lines) - 1)
+
+            if max_w <= (hole_radius * 2 - 2 * pad) and total_h <= (hole_radius * 2 - 2 * pad):
+                break
+            px -= 1
+
+        # Build a centered path block
+        fm = QtGui.QFontMetricsF(font)  # ensure fm matches final px
+        max_w = max(fm.horizontalAdvance(ln) for ln in lines)
+        line_h = fm.height()
+        gap = max(2.0, line_h * 0.15)
+        total_h = line_h * len(lines) + gap * (len(lines) - 1)
+
+        x0 = center.x() - max_w / 2.0
+        y0 = center.y() - total_h / 2.0
+
+        path = QtGui.QPainterPath()
+        y = y0
+        for ln in lines:
+            w = fm.horizontalAdvance(ln)
+            x = x0 + (max_w - w) / 2.0
+            path.addText(x, y + fm.ascent(), font, ln)
+            y += line_h + gap
+
+        # Outline + fill like child labels
+        t = float(getattr(self, "child_outline_thickness", 1.6))
+        oc = getattr(self, "child_outline_color", QtGui.QColor(20, 20, 20, 220))
+        fc = getattr(self, "child_fill_color", QtGui.QColor(255, 255, 255))
+
+        if t > 0.0:
+            stroker = QtGui.QPainterPathStroker()
+            stroker.setWidth(t * 2.0)
+            stroker.setJoinStyle(QtCore.Qt.RoundJoin)
+            stroker.setCapStyle(QtCore.Qt.RoundCap)
+            painter.fillPath(stroker.createStroke(path), oc)
+
+        painter.fillPath(path, fc)
+        painter.restore()
 
     def _draw_hole_top_caption(self, painter, center, hole_radius, text):
         from TDS_library.TDS_radialMenu import radialWidget as rw
